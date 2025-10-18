@@ -1,5 +1,7 @@
 #include "DescriptorSet.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 bool DescriptorSet::Create(const Vector<DescriptorBinding>& bs, U32 firstBinding, bool bindless)
@@ -96,21 +98,20 @@ bool DescriptorSet::Create(const Vector<DescriptorBinding>& bs, U32 firstBinding
 
 void DescriptorSet::Destroy()
 {
-	if (!bindless)
-	{
-		vkFreeDescriptorSets(Renderer::device, Renderer::vkDescriptorPool, 1, &vkDescriptorSet);
-	}
-	vkDestroyDescriptorSetLayout(Renderer::device, vkDescriptorLayout, Renderer::allocationCallbacks);
+	Renderer::ScheduleDestruction(*this);
+
+	vkDescriptorSet = nullptr;
+	vkDescriptorLayout = nullptr;
 }
 
 void DescriptorSet::Upload()
 {
-	vkUpdateDescriptorSets(Renderer::device, (U32)writes.Size(), writes.Data(), 0, nullptr);
+	vkUpdateDescriptorSets(Renderer::device, (U32)writes.Size(), (VkWriteDescriptorSet*)writes.Data(), 0, nullptr);
 }
 
-void DescriptorSet::Upload(const Vector<VkWriteDescriptorSet>& writes)
+void DescriptorSet::Upload(const Vector<WriteDescriptorSet>& writes)
 {
-	vkUpdateDescriptorSets(Renderer::device, (U32)writes.Size(), writes.Data(), 0, nullptr);
+	vkUpdateDescriptorSets(Renderer::device, (U32)writes.Size(), (VkWriteDescriptorSet*)writes.Data(), 0, nullptr);
 }
 
 DescriptorSet::operator VkDescriptorSetLayout_T* () const

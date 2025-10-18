@@ -10,7 +10,8 @@ struct VkImageView_T;
 struct VkBufferView_T;
 struct VkDescriptorSet_T;
 struct VkDescriptorSetLayout_T;
-struct VkWriteDescriptorSet;
+struct VkDescriptorImageInfo;
+struct VkDescriptorBufferInfo;
 
 enum class NH_API BindingType
 {
@@ -73,6 +74,26 @@ struct NH_API DescriptorBinding
 	VkBufferView_T* texelBufferView{};
 };
 
+struct WriteDescriptorSet {
+	U32 sType;
+	const void* pNext;
+	VkDescriptorSet_T* dstSet;
+	U32 dstBinding;
+	U32 dstArrayElement;
+	U32 descriptorCount;
+	U32 descriptorType;
+	const VkDescriptorImageInfo* pImageInfo;
+	const VkDescriptorBufferInfo* pBufferInfo;
+	const VkBufferView_T* pTexelBufferView;
+};
+
+struct DescriptorSetDestructionData
+{
+	VkDescriptorSetLayout_T* vkDescriptorLayout;
+	VkDescriptorSet_T* vkDescriptorSet;
+	bool bindless;
+};
+
 struct NH_API DescriptorSet
 {
 public:
@@ -80,7 +101,7 @@ public:
 	void Destroy();
 
 	void Upload();
-	void Upload(const Vector<VkWriteDescriptorSet>& writes);
+	void Upload(const Vector<WriteDescriptorSet>& writes);
 
 	operator VkDescriptorSetLayout_T* () const;
 	operator VkDescriptorSet_T* () const;
@@ -90,7 +111,7 @@ private:
 	VkDescriptorSet_T* vkDescriptorSet;
 
 	Vector<DescriptorBinding> bindings;
-	Vector<VkWriteDescriptorSet> writes;
+	Vector<WriteDescriptorSet> writes;
 
 	bool bindless;
 

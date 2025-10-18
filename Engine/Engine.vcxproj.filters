@@ -169,9 +169,6 @@
     <ClInclude Include="Rendering\Device.hpp">
       <Filter>Source Files\Rendering\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="Rendering\FrameBuffer.hpp">
-      <Filter>Source Files\Rendering\Vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="Rendering\Instance.hpp">
       <Filter>Source Files\Rendering\Vulkan</Filter>
     </ClInclude>
@@ -231,6 +228,15 @@
     </ClInclude>
     <ClInclude Include="Resources\TextureAtlas.hpp">
       <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Lighting.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Containers\Deque.hpp">
+      <Filter>Source Files\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\VulkanDefines.hpp">
+      <Filter>Source Files\Rendering\Vulkan</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -307,9 +313,6 @@
       <Filter>Source Files\Rendering\Vulkan</Filter>
     </ClCompile>
     <ClCompile Include="Rendering\Device.cpp">
-      <Filter>Source Files\Rendering\Vulkan</Filter>
-    </ClCompile>
-    <ClCompile Include="Rendering\FrameBuffer.cpp">
       <Filter>Source Files\Rendering\Vulkan</Filter>
     </ClCompile>
     <ClCompile Include="Rendering\Instance.cpp">
@@ -419,6 +422,9 @@
     </ClCompile>
     <ClCompile Include="Resources\AnimationComponent.cpp">
       <Filter>Source Files\Resources\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Lighting.cpp">
+      <Filter>Source Files\Rendering</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 #include "PhysicalDevice.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 PhysicalDevice::PhysicalDevice(VkPhysicalDevice_T* vkPhysicalDevice, VkSurfaceKHR_T* vkSurface) : vkPhysicalDevice(vkPhysicalDevice), suitable(false)

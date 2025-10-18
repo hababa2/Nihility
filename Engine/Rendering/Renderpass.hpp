@@ -18,4 +18,5 @@ private:
 	friend struct Pipeline;
 	friend struct FrameBuffer;
 	friend struct CommandBuffer;
+	friend struct Swapchain;
 };

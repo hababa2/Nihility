@@ -5,32 +5,33 @@
 #include "Containers/Vector.hpp"
 
 struct VkSwapchainKHR_T;
+struct VkSemaphore_T;
 struct VkImage_T;
 struct VkImageView_T;
+struct VkFramebuffer_T;
 struct VkSurfaceFormatKHR;
 struct VkExtent2D;
 struct VkSurfaceCapabilitiesKHR;
 
+struct SwapchainDestructionData
+{
+	VkSwapchainKHR_T* swapchain = nullptr;
+	Vector<VkImageView_T*> imageViews;
+	Vector<VkFramebuffer_T*> framebuffers;
+};
+
 struct Swapchain
 {
-	U32 ImageCount() const;
-
 	operator VkSwapchainKHR_T* () const;
 	VkSwapchainKHR_T* const* operator&() const;
 
 private:
-	bool Create(bool recreate);
+	bool Create();
 	void Destroy();
 
-	VkSurfaceFormatKHR FindBestSurfaceFormat(const Vector<VkSurfaceFormatKHR>& availableFormats, const Vector<VkSurfaceFormatKHR>& desiredFormats);
-	VkExtent2D FindExtent(const VkSurfaceCapabilitiesKHR& capabilities, U32 desiredWidth, U32 desiredHeight);
-
-	U32 imageCount = 0;
 	Vector<VkImage_T*> images;
 	Vector<VkImageView_T*> imageViews;
-	U32 format;
-	U32 width;
-	U32 height;
+	Vector<VkFramebuffer_T*> framebuffers;
 
 	VkSwapchainKHR_T* vkSwapchain = nullptr;
 

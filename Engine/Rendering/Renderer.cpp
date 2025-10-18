@@ -1,11 +1,15 @@
 #include "Renderer.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "CommandBufferRing.hpp"
+#include "Lighting.hpp"
 #include "UI.hpp"
 #include "LineRenderer.hpp"
 
 #include "Platform/Platform.hpp"
 #include "Core/Time.hpp"
+#include "Core/Logger.hpp"
 #include "Math/Math.hpp"
 #include "Resources/Resources.hpp"
 
@@ -30,17 +34,22 @@ DescriptorSet Renderer::descriptorSet;
 Texture Renderer::colorTextures[MaxSwapchainImages];
 Texture Renderer::depthTextures[MaxSwapchainImages];
 Buffer Renderer::stagingBuffers[MaxSwapchainImages];
+U32 Renderer::surfaceFormat;
+U32 Renderer::surfaceColorSpace;
+U32 Renderer::imageCount;
+U32 Renderer::presentMode;
+U32 Renderer::surfaceWidth;
+U32 Renderer::surfaceHeight;
 
 Instance Renderer::instance;
 Device Renderer::device;
 Swapchain Renderer::swapchain;
 Renderpass Renderer::renderpass;
-FrameBuffer Renderer::frameBuffer;
 
 Vector<VkCommandBuffer> Renderer::commandBuffers[MaxSwapchainImages];
 GlobalPushConstant Renderer::globalPushConstant;
 
-bool Renderer::resize = false;
+U32 Renderer::imageIndex;
 U32 Renderer::frameIndex;
 U32 Renderer::previousFrame;
 U32 Renderer::absoluteFrame;
@@ -51,6 +60,16 @@ VkSemaphore Renderer::presentReady[MaxSwapchainImages];
 U64 Renderer::renderWaitValues[MaxSwapchainImages];
 U64 Renderer::transferWaitValues[MaxSwapchainImages];
 
+Vector<SwapchainDestructionData> Renderer::swapchainsToDestroy;
+Vector<TextureDestructionData> Renderer::texturesToDestroy;
+Vector<BufferDestructionData> Renderer::buffersToDestroy;
+Vector<PipelineDestructionData> Renderer::pipelinesToDestroy;
+Vector<DescriptorSetDestructionData> Renderer::descriptorSetsToDestroy;
+
+#ifdef NH_DEBUG
+SetObjectNameFN Renderer::SetObjectName;
+#endif
+
 bool Renderer::Initialize(const StringView& name, U32 version)
 {
 	Logger::Trace("Initializing Renderer...");
@@ -58,13 +77,13 @@ bool Renderer::Initialize(const StringView& name, U32 version)
 	if (!instance.Create(name, version)) { Logger::Fatal("Failed To Create Vulkan Instance!"); return false; }
 	if (!device.Create()) { Logger::Fatal("Failed To Create Vulkan Device!"); return false; }
 	if (!InitializeVma()) { Logger::Fatal("Failed To Initialize Vma!"); return false; }
-	if (!swapchain.Create(false)) { Logger::Fatal("Failed To Create Swapchain!"); return false; }
+	if (!CreateSurfaceInfo()) { Logger::Fatal("Failed To Select Surface Format!"); return false; }
 	if (!CreateColorTextures()) { Logger::Fatal("Failed To Create Color Buffers!"); return false; }
 	if (!CreateDepthTextures()) { Logger::Fatal("Failed To Create Depth Buffers!"); return false; }
 	if (!CommandBufferRing::Initialize()) { Logger::Fatal("Failed To Create Command Buffers!"); return false; }
 	if (!CreateDescriptorPool()) { Logger::Fatal("Failed To Create Descriptor Pool!"); return false; }
 	if (!CreateRenderpasses()) { Logger::Fatal("Failed To Create Renderpasses!"); return false; }
-	if (!frameBuffer.Create()) { Logger::Fatal("Failed To Create Frame Buffers!"); return false; }
+	if (!swapchain.Create()) { Logger::Fatal("Failed To Create Swapchain!"); return false; }
 	if (!CreateSynchronization()) { Logger::Fatal("Failed To Create Synchronization Objects!"); return false; }
 	if (!CreateStagingBuffers()) { Logger::Fatal("Failed To Create Staging Buffers!"); return false; }
 
@@ -79,26 +98,39 @@ void Renderer::Shutdown()
 {
 	Logger::Trace("Cleaning Up Renderer...");
 
+	VkSemaphore waits[]{ renderFinished[frameIndex], transferFinished[frameIndex] };
+	U64 waitValues[]{ renderWaitValues[frameIndex], transferWaitValues[frameIndex] };
+
+	VkSemaphoreWaitInfo waitInfo{
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+		.pNext = nullptr,
+		.flags = 0,
+		.semaphoreCount = CountOf32(waits),
+		.pSemaphores = waits,
+		.pValues = waitValues
+	};
+
+	vkWaitSemaphores(device, &waitInfo, U64_MAX);
 	vkDeviceWaitIdle(device);
 
 #ifdef NH_DEBUG
 	LineRenderer::Shutdown();
 #endif
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		stagingBuffers[i].Destroy();
 	}
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	DestroyObjects();
+
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		vkDestroySemaphore(device, imageAcquired[i], allocationCallbacks);
 		vkDestroySemaphore(device, transferFinished[i], allocationCallbacks);
 		vkDestroySemaphore(device, renderFinished[i], allocationCallbacks);
 		vkDestroySemaphore(device, presentReady[i], allocationCallbacks);
 	}
-
-	frameBuffer.Destroy();
 
 	renderpass.Destroy();
 
@@ -107,7 +139,7 @@ void Renderer::Shutdown()
 
 	CommandBufferRing::Shutdown();
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		vkDestroyImageView(device, depthTextures[i].imageView, allocationCallbacks);
 		vmaDestroyImage(vmaAllocator, depthTextures[i].image, depthTextures[i].allocation);
@@ -115,7 +147,17 @@ void Renderer::Shutdown()
 		vmaDestroyImage(vmaAllocator, colorTextures[i].image, colorTextures[i].allocation);
 	}
 
-	swapchain.Destroy();
+	for (VkImageView view : swapchain.imageViews)
+	{
+		vkDestroyImageView(device, view, allocationCallbacks);
+	}
+
+	for (VkFramebuffer framebuffer : swapchain.framebuffers)
+	{
+		vkDestroyFramebuffer(device, framebuffer, allocationCallbacks);
+	}
+
+	vkDestroySwapchainKHR(device, swapchain.vkSwapchain, allocationCallbacks);
 
 #if defined(NH_DEBUG) && 0
 	char* statsString = nullptr;
@@ -148,10 +190,10 @@ void Renderer::Update()
 
 	globalPushConstant.viewProjection = World::camera.ViewProjection();
 	
-	CommandBuffer& commandBuffer = CommandBufferRing::GetDrawCommandBuffer(frameIndex);
+	CommandBuffer& commandBuffer = CommandBufferRing::GetDrawCommandBuffer(imageIndex);
 
 	commandBuffer.Begin();
-	commandBuffer.BeginRenderpass(renderpass, frameBuffer, swapchain);
+	commandBuffer.BeginRenderpass(renderpass, swapchain.framebuffers[imageIndex]);
 
 	World::Render(commandBuffer);
 
@@ -162,7 +204,6 @@ void Renderer::Update()
 	UI::Render(commandBuffer);
 
 	commandBuffer.EndRenderpass();
-
 	commandBuffer.End();
 
 	Submit();
@@ -172,18 +213,12 @@ bool Renderer::Synchronize()
 {
 	ZoneScopedN("RenderSynchronize");
 
-	if (resize)
-	{
-		resize = false;
-		RecreateSwapchain();
-	}
-
-	U32 i = absoluteFrame % swapchain.imageCount;
-	VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired[i], VK_NULL_HANDLE, &frameIndex);
-
+	U32 i = absoluteFrame % imageCount;
+	VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired[i], VK_NULL_HANDLE, &imageIndex);
+	
 	VkSemaphore waits[]{ renderFinished[previousFrame], transferFinished[previousFrame] };
 	U64 waitValues[]{ renderWaitValues[previousFrame], transferWaitValues[previousFrame] };
-
+	
 	VkSemaphoreWaitInfo waitInfo{
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 		.pNext = nullptr,
@@ -192,20 +227,22 @@ bool Renderer::Synchronize()
 		.pSemaphores = waits,
 		.pValues = waitValues
 	};
-
+	
 	vkWaitSemaphores(device, &waitInfo, U64_MAX);
 
-	CommandBufferRing::ResetDraw(frameIndex);
-	CommandBufferRing::ResetPool(frameIndex);
-
+	DestroyObjects();
+	
+	CommandBufferRing::ResetDraw(imageIndex);
+	CommandBufferRing::ResetPool(imageIndex);
+	
 	if (res == VK_ERROR_OUT_OF_DATE_KHR)
 	{
-		previousFrame = frameIndex;
-		++absoluteFrame;
-		resize = true;
-		return false;
+		Logger::Debug("After Acquire");
+		RecreateSwapchain();
+		VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired[i], VK_NULL_HANDLE, &imageIndex);
 	}
-	else { VkValidateFR(res); }
+	
+	if (res != VK_SUBOPTIMAL_KHR) { VkValidateFR(res); }
 
 	return true;
 }
@@ -214,9 +251,9 @@ void Renderer::SubmitTransfer()
 {
 	ZoneScopedN("RenderTransfer");
 
-	if (commandBuffers[frameIndex].Size())
+	if (commandBuffers[imageIndex].Size())
 	{
-		++transferWaitValues[frameIndex];
+		++transferWaitValues[imageIndex];
 
 		VkTimelineSemaphoreSubmitInfo timelineInfo{
 			.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
@@ -224,7 +261,7 @@ void Renderer::SubmitTransfer()
 			.waitSemaphoreValueCount = 0,
 			.pWaitSemaphoreValues = nullptr,
 			.signalSemaphoreValueCount = 1,
-			.pSignalSemaphoreValues = &transferWaitValues[frameIndex]
+			.pSignalSemaphoreValues = &transferWaitValues[imageIndex]
 		};
 
 		VkSubmitInfo submitInfo{
@@ -233,24 +270,32 @@ void Renderer::SubmitTransfer()
 			.waitSemaphoreCount = 0,
 			.pWaitSemaphores = nullptr,
 			.pWaitDstStageMask = nullptr,
-			.commandBufferCount = (U32)commandBuffers[frameIndex].Size(),
-			.pCommandBuffers = commandBuffers[frameIndex].Data(),
+			.commandBufferCount = (U32)commandBuffers[imageIndex].Size(),
+			.pCommandBuffers = commandBuffers[imageIndex].Data(),
 			.signalSemaphoreCount = 1,
-			.pSignalSemaphores = &transferFinished[frameIndex]
+			.pSignalSemaphores = &transferFinished[imageIndex]
 		};
 
 		VkValidateF(vkQueueSubmit(device.graphicsQueue, 1, &submitInfo, nullptr));
-		commandBuffers[frameIndex].Clear();
-		stagingBuffers[frameIndex].stagingPointer = 0;
+		commandBuffers[imageIndex].Clear();
+		stagingBuffers[imageIndex].stagingPointer = 0;
 	}
+}
+
+void Renderer::FirstTransfer()
+{
+	SubmitTransfer();
+
+	vkDeviceWaitIdle(device);
 }
 
 void Renderer::Submit()
 {
 	ZoneScopedN("RenderSubmit");
+	CommandBuffer& commandBuffer = CommandBufferRing::GetDrawCommandBuffer(imageIndex);
 
-	++renderWaitValues[frameIndex];
-
+	++renderWaitValues[imageIndex];
+	
 	VkSemaphoreSubmitInfo waitSemaphores[] = {
 	{
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -269,7 +314,7 @@ void Renderer::Submit()
 		.deviceIndex = 0,
 	}
 	};
-
+	
 	VkSemaphoreSubmitInfo signalSemaphores[] = {
 	{
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -292,7 +337,7 @@ void Renderer::Submit()
 	VkCommandBufferSubmitInfo commandBufferInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 		.pNext = nullptr,
-		.commandBuffer = CommandBufferRing::GetDrawCommandBuffer(frameIndex),
+		.commandBuffer = commandBuffer,
 		.deviceMask = 0
 	};
 
@@ -314,26 +359,32 @@ void Renderer::Submit()
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.pNext = nullptr,
 		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &presentReady[frameIndex],
+		.pWaitSemaphores = &presentReady[imageIndex],
 		.swapchainCount = 1,
 		.pSwapchains = &swapchain,
-		.pImageIndices = &frameIndex,
+		.pImageIndices = &imageIndex,
 		.pResults = nullptr
 	};
 
 	VkResult res = vkQueuePresentKHR(device.presentQueue, &presentInfo);
-	commandBuffers[frameIndex].Clear();
-
-	if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) { resize = true; }
+	commandBuffers[imageIndex].Clear();
 
 	previousFrame = frameIndex;
+	++frameIndex %= imageCount;
 
 	++absoluteFrame;
+
+	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
+	{
+		Logger::Debug("After Present");
+		RecreateSwapchain();
+	}
+	else { VkValidateF(res); }
 }
 
-U32 Renderer::FrameIndex()
+U32 Renderer::ImageIndex()
 {
-	return frameIndex;
+	return imageIndex;
 }
 
 U32 Renderer::PreviousFrame()
@@ -348,7 +399,7 @@ U32 Renderer::AbsoluteFrame()
 
 Vector4Int Renderer::RenderSize()
 {
-	return { 0, 0, (I32)swapchain.width, (I32)swapchain.height };
+	return { 0, 0, (I32)surfaceWidth, (I32)surfaceHeight };
 }
 
 const GlobalPushConstant* Renderer::GetGlobalPushConstant()
@@ -364,6 +415,23 @@ VkSemaphore_T* Renderer::RenderFinished()
 const Device& Renderer::GetDevice()
 {
 	return device;
+}
+
+void Renderer::NameResource(VkObjectType type, void* object, const String& name)
+{
+#ifdef NH_DEBUG
+	if (!SetObjectName) { SetObjectName = (SetObjectNameFN)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT"); }
+
+	VkDebugUtilsObjectNameInfoEXT nameInfo{
+		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+		.pNext = nullptr,
+		.objectType = type,
+		.objectHandle = (U64)object,
+		.pObjectName = name
+	};
+
+	SetObjectName(device, &nameInfo);
+#endif
 }
 
 bool Renderer::InitializeVma()
@@ -387,11 +455,77 @@ bool Renderer::InitializeVma()
 	return true;
 }
 
+bool Renderer::CreateSurfaceInfo()
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(Renderer::device.physicalDevice, Renderer::device.vkSurface, &capabilities);
+
+	imageCount = Math::Min(capabilities.minImageCount + 1, capabilities.maxImageCount, MaxSwapchainImages);
+
+	if (capabilities.currentExtent.width != U32_MAX)
+	{
+		surfaceWidth = capabilities.currentExtent.width;
+		surfaceHeight = capabilities.currentExtent.height;
+	}
+	else
+	{
+		VkExtent2D actualExtent = { 0, 0 };
+
+		actualExtent.width = Math::Max(capabilities.minImageExtent.width, Math::Min(capabilities.maxImageExtent.width, actualExtent.width));
+		actualExtent.height = Math::Max(capabilities.minImageExtent.height, Math::Min(capabilities.maxImageExtent.height, actualExtent.height));
+
+		surfaceWidth = actualExtent.width;
+		surfaceHeight = actualExtent.height;
+	}
+
+	U32 presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(Renderer::device.physicalDevice, Renderer::device.vkSurface, &presentModeCount, nullptr);
+	Vector<VkPresentModeKHR> presentModes(presentModeCount, {});
+	vkGetPhysicalDeviceSurfacePresentModesKHR(Renderer::device.physicalDevice, Renderer::device.vkSurface, &presentModeCount, presentModes.Data());
+
+	presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+	if (imageCount >= 3)
+	{
+		for (const VkPresentModeKHR& mode : presentModes)
+		{
+			if (mode == VK_PRESENT_MODE_MAILBOX_KHR) { presentMode = mode; break; }
+		}
+	}
+
+	U32 formatCount;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(Renderer::device.physicalDevice, Renderer::device.vkSurface, &formatCount, nullptr);
+	Vector<VkSurfaceFormatKHR> formats(formatCount, {});
+	vkGetPhysicalDeviceSurfaceFormatsKHR(Renderer::device.physicalDevice, Renderer::device.vkSurface, &formatCount, formats.Data());
+
+	Vector<VkSurfaceFormatKHR> desiredFormats = {
+		{ VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+		{ VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }
+	};
+
+	for (const VkSurfaceFormatKHR& desiredFormat : desiredFormats)
+	{
+		for (const VkSurfaceFormatKHR& availableFormat : formats)
+		{
+			if (desiredFormat.format == availableFormat.format && desiredFormat.colorSpace == availableFormat.colorSpace)
+			{
+				surfaceFormat = desiredFormat.format;
+				surfaceColorSpace = desiredFormat.colorSpace;
+				return true;
+			}
+		}
+	}
+
+	surfaceFormat = formats[0].format;
+	surfaceColorSpace = formats[0].colorSpace;
+	return true;
+}
+
 bool Renderer::CreateColorTextures()
 {
 	VkExtent3D colorImageExtent{
-		.width = swapchain.width,
-		.height = swapchain.height,
+		.width = surfaceWidth,
+		.height = surfaceHeight,
 		.depth = 1
 	};
 
@@ -400,7 +534,7 @@ bool Renderer::CreateColorTextures()
 		.pNext = nullptr,
 		.flags = 0,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = (VkFormat)swapchain.format,
+		.format = (VkFormat)surfaceFormat,
 		.extent = colorImageExtent,
 		.mipLevels = 1,
 		.arrayLayers = 1,
@@ -441,7 +575,7 @@ bool Renderer::CreateColorTextures()
 		}
 	};
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		VkValidateFR(vmaCreateImage(vmaAllocator, &imageCreateInfo, &allocationInfo, &colorTextures[i].image, &colorTextures[i].allocation, nullptr));
 		imageViewCreateInfo.image = colorTextures[i].image;
@@ -454,8 +588,8 @@ bool Renderer::CreateColorTextures()
 bool Renderer::CreateDepthTextures()
 {
 	VkExtent3D depthImageExtent{
-		.width = swapchain.width,
-		.height = swapchain.height,
+		.width = surfaceWidth,
+		.height = surfaceHeight,
 		.depth = 1
 	};
 
@@ -505,7 +639,7 @@ bool Renderer::CreateDepthTextures()
 		}
 	};
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		VkValidateFR(vmaCreateImage(vmaAllocator, &imageCreateInfo, &allocationInfo, &depthTextures[i].image, &depthTextures[i].allocation, nullptr));
 		imageViewCreateInfo.image = depthTextures[i].image;
@@ -570,11 +704,19 @@ bool Renderer::CreateSynchronization()
 		.pNext = nullptr,
 		.flags = 0
 	};
+	
+	VkFenceCreateInfo fenceInfo{
+		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0
+	};
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		vkCreateSemaphore(device, &semaphoreInfo, allocationCallbacks, &imageAcquired[i]);
+		NameResource(VK_OBJECT_TYPE_SEMAPHORE, imageAcquired[i], { FORMAT, "Image Acquired ", i });
 		vkCreateSemaphore(device, &semaphoreInfo, allocationCallbacks, &presentReady[i]);
+		NameResource(VK_OBJECT_TYPE_SEMAPHORE, presentReady[i], { FORMAT, "Present Ready ", i });
 	}
 
 	VkSemaphoreTypeCreateInfo semaphoreType{
@@ -585,11 +727,14 @@ bool Renderer::CreateSynchronization()
 	};
 
 	semaphoreInfo.pNext = &semaphoreType;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		vkCreateSemaphore(device, &semaphoreInfo, allocationCallbacks, &renderFinished[i]);
+		NameResource(VK_OBJECT_TYPE_SEMAPHORE, renderFinished[i], { FORMAT, "Render Finished ", i });
 		vkCreateSemaphore(device, &semaphoreInfo, allocationCallbacks, &transferFinished[i]);
+		NameResource(VK_OBJECT_TYPE_SEMAPHORE, transferFinished[i], { FORMAT, "Transfer Finished ", i });
 	}
 
 	return true;
@@ -597,42 +742,128 @@ bool Renderer::CreateSynchronization()
 
 bool Renderer::CreateStagingBuffers()
 {
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	for (U32 i = 0; i < imageCount; ++i)
 	{
 		stagingBuffers[i].Create(BufferType::Staging, Gigabytes(1));
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, stagingBuffers[i], { FORMAT, "Staging Buffer ", i});
 	}
 
 	return true;
+}
+
+void Renderer::ScheduleDestruction(Swapchain& swapchain)
+{
+	swapchainsToDestroy.Emplace(swapchain.vkSwapchain, Move(swapchain.imageViews), Move(swapchain.framebuffers));
+}
+
+void Renderer::ScheduleDestruction(Texture& texture)
+{
+	texturesToDestroy.Emplace(texture.image, texture.imageView, texture.allocation);
+}
+
+void Renderer::ScheduleDestruction(Buffer& buffer)
+{
+	buffersToDestroy.Emplace(buffer.vkBuffer, buffer.bufferAllocation, buffer.vkBufferStaging, buffer.stagingBufferAllocation);
+}
+
+void Renderer::ScheduleDestruction(Pipeline& pipeline)
+{
+	pipelinesToDestroy.Emplace(pipeline.vkPipeline);
+}
+
+void Renderer::ScheduleDestruction(DescriptorSet& descriptorSet)
+{
+	descriptorSetsToDestroy.Emplace(descriptorSet.vkDescriptorLayout, descriptorSet.vkDescriptorSet, descriptorSet.bindless);
+}
+
+void Renderer::DestroyObjects()
+{
+	//SWAPCHAIN
+	for (SwapchainDestructionData& data : swapchainsToDestroy)
+	{
+		for (VkImageView view : data.imageViews)
+		{
+			vkDestroyImageView(device, view, allocationCallbacks);
+		}
+
+		for (VkFramebuffer framebuffer : data.framebuffers)
+		{
+			vkDestroyFramebuffer(device, framebuffer, allocationCallbacks);
+		}
+
+		vkDestroySwapchainKHR(device, data.swapchain, allocationCallbacks);
+	}
+
+	swapchainsToDestroy.Clear();
+
+	//TEXTURE
+	for (TextureDestructionData& data : texturesToDestroy)
+	{
+		if (data.imageView) { vkDestroyImageView(device, data.imageView, allocationCallbacks); }
+		if (data.image) { vmaDestroyImage(vmaAllocator, data.image, data.allocation); }
+	}
+
+	texturesToDestroy.Clear();
+
+	//BUFFER
+	for (BufferDestructionData& data : buffersToDestroy)
+	{
+		if (data.vkBuffer) { vmaDestroyBuffer(vmaAllocator, data.vkBuffer, data.bufferAllocation); }
+		if (data.vkBufferStaging) { vmaDestroyBuffer(vmaAllocator, data.vkBufferStaging, data.stagingBufferAllocation); }
+	}
+
+	buffersToDestroy.Clear();
+
+	//PIPELINE
+	for (PipelineDestructionData& data : pipelinesToDestroy)
+	{
+		if (data.vkPipeline) { vkDestroyPipeline(device, data.vkPipeline, allocationCallbacks); }
+	}
+
+	pipelinesToDestroy.Clear();
+
+	//DESCRIPTOR SET
+	for (DescriptorSetDestructionData& data : descriptorSetsToDestroy)
+	{
+		if (!data.bindless && data.vkDescriptorSet) { vkFreeDescriptorSets(device, vkDescriptorPool, 1, &data.vkDescriptorSet); }
+		vkDestroyDescriptorSetLayout(device, data.vkDescriptorLayout, allocationCallbacks);
+	}
+
+	descriptorSetsToDestroy.Clear();
 }
 
 bool Renderer::RecreateSwapchain()
 {
-	vkDeviceWaitIdle(device);
+	VkSurfaceCapabilitiesKHR surface_properties;
+	VkValidateFR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, device.vkSurface, &surface_properties));
 
-	frameBuffer.Destroy();
-	for (U32 i = 0; i < swapchain.imageCount; ++i)
+	if (surface_properties.currentExtent.width == surfaceWidth &&
+		surface_properties.currentExtent.height == surfaceHeight)
 	{
-		vkDestroyImageView(device, depthTextures[i].imageView, allocationCallbacks);
-		vmaDestroyImage(vmaAllocator, depthTextures[i].image, depthTextures[i].allocation);
-		vkDestroyImageView(device, colorTextures[i].imageView, allocationCallbacks);
-		vmaDestroyImage(vmaAllocator, colorTextures[i].image, colorTextures[i].allocation);
+		return false;
 	}
 
-	if (!swapchain.Create(true)) { Logger::Fatal("Failed To Create Swapchain!"); return false; }
-	if (!CreateColorTextures()) { Logger::Fatal("Failed To Create Depth Buffer!"); return false; }
-	if (!CreateDepthTextures()) { Logger::Fatal("Failed To Create Depth Buffer!"); return false; }
-	if (!frameBuffer.Create()) { Logger::Fatal("Failed To Create Frame Buffers!"); return false; }
+	CreateSurfaceInfo(); //TODO: Might not need to do this
 
-	return true;
+	for (U32 i = 0; i < imageCount; ++i)
+	{
+		ScheduleDestruction(depthTextures[i]);
+		ScheduleDestruction(colorTextures[i]);
+	}
+
+	if (!CreateColorTextures()) { Logger::Fatal("Failed To Create Color Buffer!"); return false; }
+	if (!CreateDepthTextures()) { Logger::Fatal("Failed To Create Depth Buffer!"); return false; }
+
+	return swapchain.Create();
 }
 
 bool Renderer::UploadTexture(Resource<Texture>& texture, void* data, const Sampler& sampler)
 {
-	U64 offset = NextMultipleOf(stagingBuffers[frameIndex].StagingPointer(), 16);
+	U64 offset = NextMultipleOf(stagingBuffers[imageIndex].StagingPointer(), 16);
 
-	stagingBuffers[frameIndex].UploadStagingData(data, texture->size, offset);
+	stagingBuffers[imageIndex].UploadStagingData(data, texture->size, offset);
 
-	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(frameIndex);
+	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(imageIndex);
 	commandBuffer.Begin();
 
 	VkImageCreateInfo imageInfo{
@@ -735,7 +966,7 @@ bool Renderer::UploadTexture(Resource<Texture>& texture, void* data, const Sampl
 	};
 
 	commandBuffer.PipelineBarrier(0, 0, nullptr, 1, &stagingBufferTransferBarrier);
-	commandBuffer.BufferToImage(stagingBuffers[frameIndex], texture, 1, &stagingBufferCopy);
+	commandBuffer.BufferToImage(stagingBuffers[imageIndex], texture, 1, &stagingBufferCopy);
 	commandBuffer.PipelineBarrier(0, 0, nullptr, 1, &stagingBufferShaderBarrier);
 
 	if (texture->mipmapLevels > 1)
@@ -839,7 +1070,7 @@ bool Renderer::UploadTexture(Resource<Texture>& texture, void* data, const Sampl
 
 	VkValidateR(commandBuffer.End());
 
-	commandBuffers[frameIndex].Push(commandBuffer);
+	commandBuffers[imageIndex].Push(commandBuffer);
 
 	VkImageViewCreateInfo texViewInfo{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

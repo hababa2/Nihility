@@ -131,6 +131,13 @@ struct NH_API Sampler
 	BorderColor borderColor = BorderColor::Clear;
 };
 
+struct TextureDestructionData
+{
+	VkImage_T* image = nullptr;
+	VkImageView_T* imageView = nullptr;
+	VmaAllocation_T* allocation = nullptr;
+};
+
 struct NH_API Texture
 {
 	const String& Name() const { return name; }
@@ -157,4 +164,5 @@ private:
 	friend class Resources;
 	friend struct FrameBuffer;
 	friend struct CommandBuffer;
+	friend struct Swapchain;
 };

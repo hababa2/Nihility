@@ -70,7 +70,7 @@ inline Queue<Type>::Queue(Queue<Type>&& other) : capacity(other.capacity), capac
 template<class Type>
 inline Queue<Type>& Queue<Type>::operator=(const Queue<Type>& other)
 {
-	if (array) { Memory::Free(array); }
+	if (array) { Memory::Free(&array); }
 	front = other.front;
 	back = other.back;
 	capacity = other.capacity;
@@ -85,7 +85,7 @@ inline Queue<Type>& Queue<Type>::operator=(const Queue<Type>& other)
 template<class Type>
 inline Queue<Type>& Queue<Type>::operator=(Queue<Type>&& other)
 {
-	if (array) { Memory::Free(array); }
+	if (array) { Memory::Free(&array); }
 	front = other.front;
 	back = other.back;
 	capacity = other.capacity;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Defines.hpp"
+#include "VulkanDefines.hpp"
 
 #include "CommandBuffer.hpp"
 

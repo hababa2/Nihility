@@ -70,7 +70,7 @@ bool Animation::Update(Camera& camera, Vector<Entity>& entities)
 
 		AnimationClip& clip = animation.clips[animation.clipIndex];
 		AnimationFrame& frame = clip.frames[animation.currentFrame];
-		animation.timer -= Time::DeltaTimeStable();
+		animation.timer -= (F32)Time::DeltaTimeStable();
 		if (animation.timer <= 0.0f)
 		{
 			++animation.currentFrame %= clip.frames.Size();

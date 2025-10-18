@@ -1,5 +1,7 @@
 #include "Renderpass.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 bool Renderpass::Create()
@@ -8,7 +10,7 @@ bool Renderpass::Create()
 		.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2,
 		.pNext = nullptr,
 		.flags = 0,
-		.format = (VkFormat)Renderer::swapchain.format,
+		.format = (VkFormat)Renderer::surfaceFormat,
 		.samples = (VkSampleCountFlagBits)Renderer::device.physicalDevice.maxSampleCount,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -52,7 +54,7 @@ bool Renderpass::Create()
 		.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2,
 		.pNext = nullptr,
 		.flags = 0,
-		.format = (VkFormat)Renderer::swapchain.format,
+		.format = (VkFormat)Renderer::surfaceFormat,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,

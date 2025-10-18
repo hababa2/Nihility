@@ -1,5 +1,7 @@
 #include "UI.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 #include "Resources/Resources.hpp"
@@ -22,6 +24,10 @@ F32 UI::textWidth;
 F32 UI::textHeight;
 Vector2 UI::textPosition;
 Vector2 UI::textPadding;
+
+#ifdef NH_DEBUG
+Text UI::fpsText;
+#endif
 
 Element::Element(U32 index) : index(index) {}
 
@@ -248,6 +254,14 @@ bool UI::Initialize()
 	textMaterial.UploadVertices(textVertices, sizeof(TextVertex) * 4, 0);
 	textMaterial.UploadIndices(indices, sizeof(U32) * 6, 0);
 
+#ifdef NH_DEBUG
+	ElementInfo info{};
+	info.area = { 0.9775f, 0.005f, 1.0f, 1.0f };
+	info.color = { 0.0f, 1.0f, 0.0f, 1.0f };
+
+	fpsText = CreateText(info, "000", 3.0f);
+#endif
+
 	return true;
 }
 
@@ -268,6 +282,10 @@ void UI::Shutdown()
 
 void UI::Update()
 {
+#ifdef NH_DEBUG
+	ChangeText(fpsText, { FORMAT, Time::FrameRate() });
+#endif
+
 	Vector2 mousePosition = Input::MousePosition() / (Vector2)Renderer::RenderSize() * 2.0f - Vector2::One;
 
 	for (Element& element : elements)
@@ -341,7 +359,7 @@ ElementRef UI::CreateElement(const ElementInfo& info)
 
 Text UI::CreateText(const ElementInfo& info, const String& text, F32 scale)
 {
-	U32 instanceIndex = textInstances.Size();
+	U32 instanceIndex = (U32)textInstances.Size();
 	U32 count = 0;
 
 	scale *= 16.0f / (F32)font->glyphSize;
@@ -352,7 +370,6 @@ Text UI::CreateText(const ElementInfo& info, const String& text, F32 scale)
 	F32 yOffset = textHeight * scale / 4.0f;
 
 	U8 prev = 255;
-	U32 i = 0;
 
 	for (C8 c : text)
 	{
@@ -391,7 +408,56 @@ Text UI::CreateText(const ElementInfo& info, const String& text, F32 scale)
 		prev = c;
 	}
 
-	return { instanceIndex, count };
+	return { startPosition, instanceIndex, count };
+}
+
+bool UI::ChangeText(const Text& text, const String& newText)
+{
+	if (newText.Size() > text.count) { return false; }
+
+	Vector2 startPosition = text.startPosition;
+	Vector2 position = startPosition;
+
+	F32 scale = textInstances[0].scale;
+	F32 yOffset = textHeight * scale / 4.0f;
+
+	U8 prev = 255;
+	U32 i = 0;
+
+	for (C8 c : newText)
+	{
+		Glyph& glyph = font->glyphs[c - 32];
+
+		if (c == '\n')
+		{
+			position.x = startPosition.x;
+			position.y += (font->ascent + font->lineGap) * textHeight * scale;
+		}
+		else if (c != ' ')
+		{
+			U8 index = c - 32;
+
+			Vector2 texPos = { (F32)(index % 8), (F32)(index / 8) };
+
+			TextInstance& instance = textInstances[text.index + i];
+
+			instance.position = position - Vector2{ glyph.x * textWidth * scale, -glyph.y * textHeight * scale + yOffset };
+			if (prev == 255 || prev == '\n') { instance.position.x -= glyph.leftBearing * textWidth * scale; }
+			instance.texcoord = texPos * textPosition + (texPos + Vector2::One) * textPadding;
+		}
+
+		position.x += glyph.advance * textWidth * scale;
+
+		if (prev != 255)
+		{
+			position.x += font->glyphs[prev - 32].kerning[c - 32] * textWidth * scale;
+		}
+
+		prev = c;
+		++i;
+	}
+
+	return true;
 }
 
 void UI::DestroyText(const Text& text)

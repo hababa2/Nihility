@@ -1,5 +1,7 @@
 #include "SpriteComponent.hpp"
 
+#include "Rendering/VulkanInclude.hpp"
+
 #include "Resources.hpp"
 
 #include "Rendering/Renderer.hpp"

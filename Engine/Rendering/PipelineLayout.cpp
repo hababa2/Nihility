@@ -1,5 +1,7 @@
 #include "PipelineLayout.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 bool PipelineLayout::Create(const Vector<DescriptorSet>& descriptorSets, const Vector<VkPushConstantRange>& pushConstants)

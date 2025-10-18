@@ -18,6 +18,7 @@
 #include "Math/Physics.hpp"
 #include "Multithreading/Jobs.hpp"
 #include "Rendering/Renderer.hpp"
+#include "Rendering/Lighting.hpp"
 #include "Rendering/UI.hpp"
 #include "Audio/Audio.hpp"
 
@@ -37,14 +38,16 @@ bool Engine::Initialize(const GameInfo& _info)
 	if (!Audio::Initialize()) { return false; }
 	if (!Renderer::Initialize(game.name, game.version)) { return false; }
 	if (!Resources::Initialize()) { return false; }
+	if (!Lighting::Initialize()) { return false; }
 	if (!UI::Initialize()) { return false; }
 	if (!Physics::Initialize()) { return false; }
 	game.componentsInit();
 	if (!World::Initialize()) { return false; }
 	if (!game.initialize()) { return false; }
-	if (!Time::Initialize()) { return false; }
 
-	Renderer::SubmitTransfer();
+	Renderer::FirstTransfer();
+
+	if (!Time::Initialize()) { return false; }
 
 	MainLoop();
 	Shutdown();
@@ -59,6 +62,7 @@ void Engine::Shutdown()
 	World::Shutdown();
 	Physics::Shutdown();
 	UI::Shutdown();
+	Lighting::Shutdown();
 	Resources::Shutdown();
 	Renderer::Shutdown();
 	Audio::Shutdown();
@@ -92,11 +96,11 @@ void Engine::MainLoop()
 
 		F64 remainingFrameTime = Settings::targetFrametime - Time::FrameUpTime();
 		I64 remainingUS = (I64)(remainingFrameTime * 1000000.0);
-
+		
 		while (remainingUS > 0)
 		{
 			Jobs::Yield();
-
+		
 			remainingFrameTime = Settings::targetFrametime - Time::FrameUpTime();
 			remainingUS = (I64)(remainingFrameTime * 1000000.0);
 		}

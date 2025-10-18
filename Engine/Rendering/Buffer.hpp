@@ -21,6 +21,14 @@ enum class NH_API BufferType
 	DrawIndirect
 };
 
+struct BufferDestructionData
+{
+	VkBuffer_T* vkBuffer = nullptr;
+	VmaAllocation_T* bufferAllocation = nullptr;
+	VkBuffer_T* vkBufferStaging = nullptr;
+	VmaAllocation_T* stagingBufferAllocation = nullptr;
+};
+
 struct NH_API Buffer
 {
 public:

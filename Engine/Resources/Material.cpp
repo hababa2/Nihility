@@ -1,5 +1,7 @@
 #include "Material.hpp"
 
+#include "Rendering/VulkanInclude.hpp"
+
 #include "Resources.hpp"
 
 #include "Rendering/Renderer.hpp"
@@ -14,14 +16,20 @@ bool Material::Create(const PipelineLayout& pipelineLayout, const Pipeline& pipe
 	if (pipeline.VertexSize())
 	{
 		vertexBuffer.Create(BufferType::Vertex, pipeline.VertexSize() * 4);
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vertexBuffer, "Material Vertex Buffer");
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vertexBuffer, "Material Vertex Staging Buffer");
 		indexBuffer.Create(BufferType::Index, sizeof(U32) * 6);
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, indexBuffer, "Material Index Buffer");
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, indexBuffer, "Material Index Staging Buffer");
 	}
 
 	if (pipeline.InstanceSize())
 	{
-		for (U32 i = 0; i < Renderer::swapchain.ImageCount(); ++i)
+		for (U32 i = 0; i < Renderer::imageCount; ++i)
 		{
 			instanceBuffers[i].Create(BufferType::Vertex, pipeline.InstanceSize() * 10000);
+			Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, instanceBuffers[i], { FORMAT, "Material Instance Buffer ", i });
+			Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, instanceBuffers[i], { FORMAT, "Material Instance Staging Buffer ", i });
 		}
 	}
 
@@ -38,7 +46,7 @@ void Material::Destroy()
 	vertexBuffer.Destroy();
 	indexBuffer.Destroy();
 
-	for (U32 i = 0; i < Renderer::swapchain.ImageCount(); ++i)
+	for (U32 i = 0; i < Renderer::imageCount; ++i)
 	{
 		instanceBuffers[i].Destroy();
 	}
@@ -49,7 +57,7 @@ void Material::Destroy()
 
 void Material::Bind(CommandBuffer commandBuffer) const
 {
-	if ((vertexUsage == VertexUsage::VerticesAndInstances || vertexUsage == VertexUsage::Instances) && instanceBuffers[Renderer::frameIndex].Offset() == U64_MAX) { return; }
+	if ((vertexUsage == VertexUsage::VerticesAndInstances || vertexUsage == VertexUsage::Instances) && instanceBuffers[Renderer::imageIndex].Offset() == U64_MAX) { return; }
 	if ((vertexUsage == VertexUsage::VerticesAndInstances || vertexUsage == VertexUsage::Vertices) && vertexBuffer.Offset() == U64_MAX) { return; }
 
 	commandBuffer.BindPipeline(pipeline);
@@ -62,13 +70,13 @@ void Material::Bind(CommandBuffer commandBuffer) const
 	switch (vertexUsage)
 	{
 	case VertexUsage::VerticesAndInstances: {
-		VkBuffer vertexBuffers[] = { vertexBuffer, instanceBuffers[Renderer::frameIndex] };
-		U64 offsets[] = { vertexBuffer.Offset(), instanceBuffers[Renderer::frameIndex].Offset() };
+		VkBuffer vertexBuffers[] = { vertexBuffer, instanceBuffers[Renderer::imageIndex] };
+		U64 offsets[] = { vertexBuffer.Offset(), instanceBuffers[Renderer::imageIndex].Offset() };
 		commandBuffer.BindVertexBuffers(CountOf32(vertexBuffers), vertexBuffers, offsets);
 
 		commandBuffer.BindIndexBuffer(indexBuffer, (U32)indexBuffer.Offset());
 
-		commandBuffer.DrawIndexed((U32)(indexBuffer.Size() / sizeof(U32)), (U32)(instanceBuffers[Renderer::frameIndex].Size() / pipeline.InstanceSize()), 0, 0, 0);
+		commandBuffer.DrawIndexed((U32)(indexBuffer.Size() / sizeof(U32)), (U32)(instanceBuffers[Renderer::imageIndex].Size() / pipeline.InstanceSize()), 0, 0, 0);
 	} break;
 	case VertexUsage::Vertices: {
 		VkBuffer vertexBuffers[] = { vertexBuffer };
@@ -80,11 +88,11 @@ void Material::Bind(CommandBuffer commandBuffer) const
 		commandBuffer.DrawIndexed((U32)(indexBuffer.Size() / sizeof(U32)), 1, 0, 0, 0);
 	} break;
 	case VertexUsage::Instances: {
-		VkBuffer vertexBuffers[] = { instanceBuffers[Renderer::frameIndex] };
-		U64 offsets[] = { instanceBuffers[Renderer::frameIndex].Offset() };
+		VkBuffer vertexBuffers[] = { instanceBuffers[Renderer::imageIndex] };
+		U64 offsets[] = { instanceBuffers[Renderer::imageIndex].Offset() };
 		commandBuffer.BindVertexBuffers(CountOf32(vertexBuffers), vertexBuffers, offsets);
 
-		commandBuffer.Draw(0, 3, 0, (U32)(instanceBuffers[Renderer::frameIndex].Size() / pipeline.InstanceSize()));
+		commandBuffer.Draw(0, 3, 0, (U32)(instanceBuffers[Renderer::imageIndex].Size() / pipeline.InstanceSize()));
 	} break;
 	case VertexUsage::None: {
 		commandBuffer.Draw(0, 3, 0, 1);
@@ -100,7 +108,7 @@ void Material::UploadVertices(const void* data, U32 size, U32 offset)
 
 void Material::UploadInstances(const void* data, U32 size, U32 offset)
 {
-	if (pipeline.InstanceSize()) { instanceBuffers[Renderer::frameIndex].UploadVertexData(data, size, offset); }
+	if (pipeline.InstanceSize()) { instanceBuffers[Renderer::imageIndex].UploadVertexData(data, size, offset); }
 	else { Logger::Error("This Material Does Not Use Instances!"); }
 }
 

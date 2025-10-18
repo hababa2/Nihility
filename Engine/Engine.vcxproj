@@ -115,6 +115,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Audio\Audio.hpp" />
+    <ClInclude Include="Containers\Deque.hpp" />
     <ClInclude Include="Containers\Freelist.hpp" />
     <ClInclude Include="Containers\Hashmap.hpp" />
     <ClInclude Include="Containers\Pair.hpp" />
@@ -145,8 +146,8 @@
     <ClInclude Include="Rendering\CommandBufferRing.hpp" />
     <ClInclude Include="Rendering\DescriptorSet.hpp" />
     <ClInclude Include="Rendering\Device.hpp" />
-    <ClInclude Include="Rendering\FrameBuffer.hpp" />
     <ClInclude Include="Rendering\Instance.hpp" />
+    <ClInclude Include="Rendering\Lighting.hpp" />
     <ClInclude Include="Rendering\LineRenderer.hpp" />
     <ClInclude Include="Rendering\PhysicalDevice.hpp" />
     <ClInclude Include="Rendering\Pipeline.hpp" />
@@ -156,6 +157,7 @@
     <ClInclude Include="Rendering\Shader.hpp" />
     <ClInclude Include="Rendering\Swapchain.hpp" />
     <ClInclude Include="Rendering\UI.hpp" />
+    <ClInclude Include="Rendering\VulkanDefines.hpp" />
     <ClInclude Include="Rendering\VulkanInclude.hpp" />
     <ClInclude Include="Resources\AnimationComponent.hpp" />
     <ClInclude Include="Resources\CharacterComponent.hpp" />
@@ -215,8 +217,8 @@
     <ClCompile Include="Rendering\CommandBufferRing.cpp" />
     <ClCompile Include="Rendering\DescriptorSet.cpp" />
     <ClCompile Include="Rendering\Device.cpp" />
-    <ClCompile Include="Rendering\FrameBuffer.cpp" />
     <ClCompile Include="Rendering\Instance.cpp" />
+    <ClCompile Include="Rendering\Lighting.cpp" />
     <ClCompile Include="Rendering\LineRenderer.cpp" />
     <ClCompile Include="Rendering\PhysicalDevice.cpp" />
     <ClCompile Include="Rendering\Pipeline.cpp" />

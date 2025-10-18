@@ -1,5 +1,7 @@
 #include "TilemapComponent.hpp"
 
+#include "Rendering/VulkanInclude.hpp"
+
 #include "Resources.hpp"
 
 #include "Rendering/Renderer.hpp"
@@ -58,7 +60,9 @@ bool Tilemap::Initialize()
 		tilemapMaterial.Create(tilemapPipelineLayout, tilemapPipeline, { tilemapDescriptor, Resources::BindlessTexturesDescriptorSet() });
 
 		tilemapData.Create(BufferType::Storage, sizeof(TilemapData) * 16);
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, tilemapData, "Tilemap Data");
 		tilesData.Create(BufferType::Storage, Megabytes(4));
+		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, tilesData, "Tiles Data");
 
 		World::UpdateFns += Update;
 		World::RenderFns += Render;

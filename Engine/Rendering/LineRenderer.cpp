@@ -1,5 +1,7 @@
 #include "LineRenderer.hpp"
 
+#include "Rendering/VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 #include "Resources/Resources.hpp"

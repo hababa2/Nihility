@@ -273,5 +273,3 @@ inline bool ResultSuccess(VkResult result)
 }
 
 #endif
-
-static constexpr inline U32 MaxSwapchainImages = 3;

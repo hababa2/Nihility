@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ResourceDefines.hpp"
+#include "Rendering/VulkanDefines.hpp"
 
 #include "Rendering/Buffer.hpp"
 #include "Rendering/Shader.hpp"
@@ -10,6 +11,22 @@
 #include "Containers/Vector.hpp"
 
 struct VkDescriptorSet_T;
+struct VkBuffer_T;
+
+struct NH_API Barrier
+{
+	I32 type;
+	const void* next;
+	U64 srcStageMask;
+	U64 srcAccessMask;
+	U64 dstStageMask;
+	U64 dstAccessMask;
+	U32 srcQueueFamilyIndex;
+	U32 dstQueueFamilyIndex;
+	VkBuffer_T* buffer;
+	U64 offset;
+	U64 size;
+};
 
 struct NH_API PushConstant
 {
@@ -57,4 +74,6 @@ private:
 	Buffer instanceBuffers[MaxSwapchainImages];
 	Vector<VkDescriptorSet_T*> sets;
 	Vector<PushConstant> pushConstants;
+
+	friend class Renderer;
 };

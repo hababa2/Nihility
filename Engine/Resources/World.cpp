@@ -23,8 +23,6 @@ bool World::Initialize()
 
 void World::Shutdown()
 {
-	vkDeviceWaitIdle(Renderer::device);
-
 	ShutdownFns();
 }
 

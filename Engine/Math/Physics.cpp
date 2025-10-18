@@ -80,9 +80,9 @@ Collision Physics::CheckCollision(const AABB& collider)
 		U32 width = (U32)Math::Ceiling((collider.upperBound.x - collider.lowerBound.x) / col.tileSize.x);
 		U32 height = (U32)Math::Ceiling((collider.upperBound.y - collider.lowerBound.y) / col.tileSize.y);
 
-		for (I32 x = tilemapPosition.x - width; x < tilemapPosition.x + width; ++x)
+		for (I32 x = (I32)(tilemapPosition.x - width); x < (I32)(tilemapPosition.x + width); ++x)
 		{
-			for (I32 y = tilemapPosition.y - height; y < tilemapPosition.y + height; ++y)
+			for (I32 y = (I32)(tilemapPosition.y - height); y < (I32)(tilemapPosition.y + height); ++y)
 			{
 				//TODO: switch statement with a different check for each type
 				if (x < col.dimensions.x && x >= 0 && y < col.dimensions.y && y >= 0 && col.tileArray[x + y * col.dimensions.x] == TileType::Full)

@@ -1,5 +1,7 @@
 #include "Buffer.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 #include "CommandBufferRing.hpp"
@@ -91,8 +93,7 @@ bool Buffer::Create(BufferType type, U64 size)
 
 void Buffer::Destroy()
 {
-	if (vkBuffer) { vmaDestroyBuffer(Renderer::vmaAllocator, vkBuffer, bufferAllocation); }
-	if (vkBufferStaging) { vmaDestroyBuffer(Renderer::vmaAllocator, vkBufferStaging, stagingBufferAllocation); }
+	Renderer::ScheduleDestruction(*this);
 
 	bufferSize = 0;
 	vkBuffer = VK_NULL_HANDLE;
@@ -122,10 +123,10 @@ bool Buffer::UploadVertexData(const void* vertexData, U64 size, U64 offset)
 	vmaUnmapMemory(Renderer::vmaAllocator, stagingBufferAllocation);
 	vmaFlushAllocation(Renderer::vmaAllocator, stagingBufferAllocation, 0, size);
 
-	VkBufferMemoryBarrier2 vertexBufferBarrier{
+	VkBufferMemoryBarrier2 readBarrier{
 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
 		.pNext = nullptr,
-		.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+		.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
 		.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
 		.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT,
 		.dstAccessMask = VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
@@ -142,13 +143,13 @@ bool Buffer::UploadVertexData(const void* vertexData, U64 size, U64 offset)
 		.size = bufferSize
 	};
 
-	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(Renderer::frameIndex);
+	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(Renderer::imageIndex);
 
 	commandBuffer.Begin();
 	commandBuffer.BufferToBuffer(vkBufferStaging, vkBuffer, 1, &stagingBufferCopy);
-	commandBuffer.PipelineBarrier(0, 1, &vertexBufferBarrier, 0, nullptr);
+	commandBuffer.PipelineBarrier(0, 1, &readBarrier, 0, nullptr);
 	commandBuffer.End();
-	Renderer::commandBuffers[Renderer::frameIndex].Push(commandBuffer);
+	Renderer::commandBuffers[Renderer::imageIndex].Push(commandBuffer);
 
 	return true;
 }
@@ -176,7 +177,7 @@ bool Buffer::UploadIndexData(const void* indexData, U64 size, U64 offset)
 	VkBufferMemoryBarrier2 indexBufferBarrier{
 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
 		.pNext = nullptr,
-		.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+		.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
 		.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
 		.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT,
 		.dstAccessMask = VK_ACCESS_2_INDEX_READ_BIT,
@@ -193,13 +194,13 @@ bool Buffer::UploadIndexData(const void* indexData, U64 size, U64 offset)
 		.size = bufferSize
 	};
 
-	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(Renderer::frameIndex);
+	CommandBuffer& commandBuffer = CommandBufferRing::GetWriteCommandBuffer(Renderer::imageIndex);
 
 	commandBuffer.Begin();
 	commandBuffer.BufferToBuffer(vkBufferStaging, vkBuffer, 1, &stagingBufferCopy);
 	commandBuffer.PipelineBarrier(0, 1, &indexBufferBarrier, 0, nullptr);
 	commandBuffer.End();
-	Renderer::commandBuffers[Renderer::frameIndex].Push(commandBuffer);
+	Renderer::commandBuffers[Renderer::imageIndex].Push(commandBuffer);
 
 	return true;
 }

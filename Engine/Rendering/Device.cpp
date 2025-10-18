@@ -1,5 +1,7 @@
 #include "Device.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 #include "Platform/Platform.hpp"
 

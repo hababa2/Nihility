@@ -4,7 +4,6 @@
 
 #include "Pipeline.hpp"
 #include "Renderpass.hpp"
-#include "FrameBuffer.hpp"
 #include "Swapchain.hpp"
 #include "Buffer.hpp"
 
@@ -12,6 +11,7 @@
 
 struct VkCommandBuffer_T;
 struct VkBuffer_T;
+struct VkFramebuffer_T;
 struct VkDescriptorSet_T;
 struct VkBufferImageCopy;
 struct VkClearAttachment;
@@ -30,7 +30,7 @@ struct CommandBuffer
 
 	void ClearAttachments(U32 attachmentCount, VkClearAttachment* attachments, U32 rectCount, VkClearRect* rects);
 
-	void BeginRenderpass(const Renderpass& renderpass, const FrameBuffer& frameBuffer, const Swapchain& swapchain);
+	void BeginRenderpass(const Renderpass& renderpass, VkFramebuffer_T* frameBuffer);
 	void NextSubpass();
 	void EndRenderpass();
 
@@ -62,6 +62,9 @@ struct CommandBuffer
 	void PipelineBarrier(I32 dependencyFlags, U32 bufferBarrierCount, const VkBufferMemoryBarrier2* bufferBarriers, U32 imageBarrierCount, const VkImageMemoryBarrier2* imageBarriers);
 
 private:
+	CommandBuffer();
+	CommandBuffer(VkCommandBuffer_T* vkCommandBuffer);
+
 	VkCommandBuffer_T* vkCommandBuffer = nullptr;
 
 	operator VkCommandBuffer_T*() const;

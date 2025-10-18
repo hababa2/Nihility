@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Defines.hpp"
+#include "VulkanDefines.hpp"
 
 #include "Instance.hpp"
 #include "Device.hpp"
@@ -12,25 +12,36 @@
 #include "Pipeline.hpp"
 #include "DescriptorSet.hpp"
 #include "Shader.hpp"
-#include "FrameBuffer.hpp"
 #include "Camera.hpp"
 
 #include "Resources/ResourceDefines.hpp"
 #include "Resources/Texture.hpp"
 #include "Resources/World.hpp"
 #include "Containers/String.hpp"
+#include "Containers/Deque.hpp"
 
+enum VkResult;
+enum VkObjectType;
 struct VmaAllocator_T;
 struct VmaAllocation_T;
 struct VkDescriptorPool_T;
 struct VkCommandBuffer_T;
 struct VkSemaphore_T;
+struct VkImage_T;
+struct VkImageView_T;
+struct VkFramebuffer_T;
+struct VkFence_T;
+struct VkCommandPool_T;
+struct VkSwapchainKHR_T;
 struct VkAllocationCallbacks;
+struct VkDebugUtilsObjectNameInfoEXT;
+
+using SetObjectNameFN = VkResult(__stdcall*)(VkDevice_T* device, const VkDebugUtilsObjectNameInfoEXT* nameInfo);
 
 class NH_API Renderer
 {
 public:
-	static U32 FrameIndex();
+	static U32 ImageIndex();
 	static U32 PreviousFrame();
 	static U32 AbsoluteFrame();
 
@@ -39,6 +50,7 @@ public:
 	static const GlobalPushConstant* GetGlobalPushConstant();
 	static VkSemaphore_T* RenderFinished();
 	static const Device& GetDevice();
+	static void NameResource(VkObjectType type, void* object, const String& name);
 
 private:
 	static bool Initialize(const StringView& name, U32 version);
@@ -46,16 +58,25 @@ private:
 
 	static void Update();
 	static bool Synchronize();
+	static void FirstTransfer();
 	static void SubmitTransfer();
 	static void Submit();
 
 	static bool InitializeVma();
+	static bool CreateSurfaceInfo();
 	static bool CreateColorTextures();
 	static bool CreateDepthTextures();
 	static bool CreateDescriptorPool();
 	static bool CreateRenderpasses();
 	static bool CreateSynchronization();
 	static bool CreateStagingBuffers();
+
+	static void ScheduleDestruction(Swapchain& swapchain);
+	static void ScheduleDestruction(Texture& texture);
+	static void ScheduleDestruction(Buffer& buffer);
+	static void ScheduleDestruction(Pipeline& pipeline);
+	static void ScheduleDestruction(DescriptorSet& descriptorSet);
+	static void DestroyObjects();
 
 	static bool RecreateSwapchain();
 
@@ -71,20 +92,25 @@ private:
 	static Texture colorTextures[MaxSwapchainImages];
 	static Texture depthTextures[MaxSwapchainImages];
 	static Buffer stagingBuffers[MaxSwapchainImages];
+	static U32 surfaceFormat;
+	static U32 surfaceColorSpace;
+	static U32 imageCount;
+	static U32 presentMode;
+	static U32 surfaceWidth;
+	static U32 surfaceHeight;
 
 	//Vulkan Objects
 	static Instance instance;
 	static Device device;
 	static Swapchain swapchain;
 	static Renderpass renderpass;
-	static FrameBuffer frameBuffer;
 
 	//Recording
 	static Vector<VkCommandBuffer_T*> commandBuffers[MaxSwapchainImages];
 	static GlobalPushConstant globalPushConstant;
 
 	//Synchronization
-	static bool resize;
+	static U32 imageIndex;
 	static U32 frameIndex;
 	static U32 previousFrame;
 	static U32 absoluteFrame;
@@ -94,6 +120,17 @@ private:
 	static VkSemaphore_T* presentReady[MaxSwapchainImages];
 	static U64 renderWaitValues[MaxSwapchainImages];
 	static U64 transferWaitValues[MaxSwapchainImages];
+
+	static Vector<SwapchainDestructionData> swapchainsToDestroy;
+	static Vector<TextureDestructionData> texturesToDestroy;
+	static Vector<BufferDestructionData> buffersToDestroy;
+	static Vector<PipelineDestructionData> pipelinesToDestroy;
+	static Vector<DescriptorSetDestructionData> descriptorSetsToDestroy;
+
+	//Debug
+#ifdef NH_DEBUG
+	static SetObjectNameFN SetObjectName;
+#endif
 
 	friend class Engine;
 	friend class Resources;

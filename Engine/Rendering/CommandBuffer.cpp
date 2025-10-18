@@ -1,6 +1,15 @@
 #include "CommandBuffer.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
+
+CommandBuffer::CommandBuffer() {}
+
+CommandBuffer::CommandBuffer(VkCommandBuffer_T* vkCommandBuffer) : vkCommandBuffer(vkCommandBuffer)
+{
+
+}
 
 U32 CommandBuffer::Begin()
 {
@@ -22,7 +31,7 @@ void CommandBuffer::ClearAttachments(U32 attachmentCount, VkClearAttachment* att
 	vkCmdClearAttachments(vkCommandBuffer, attachmentCount, attachments, rectCount, rects);
 }
 
-void CommandBuffer::BeginRenderpass(const Renderpass& renderpass, const FrameBuffer& frameBuffer, const Swapchain& swapchain)
+void CommandBuffer::BeginRenderpass(const Renderpass& renderpass, VkFramebuffer_T* frameBuffer)
 {
 	VkClearValue colorClearValue;
 	colorClearValue.color = { { 0.25f, 0.25f, 0.25f, 1.0f } };
@@ -38,8 +47,8 @@ void CommandBuffer::BeginRenderpass(const Renderpass& renderpass, const FrameBuf
 	renderPassBegin.framebuffer = frameBuffer;
 	renderPassBegin.renderArea.offset.x = 0;
 	renderPassBegin.renderArea.offset.y = 0;
-	renderPassBegin.renderArea.extent.width = swapchain.width;
-	renderPassBegin.renderArea.extent.height = swapchain.height;
+	renderPassBegin.renderArea.extent.width = Renderer::surfaceWidth;
+	renderPassBegin.renderArea.extent.height = Renderer::surfaceHeight;
 	renderPassBegin.clearValueCount = (U32)clearValues.Size();
 	renderPassBegin.pClearValues = clearValues.Data();
 
@@ -48,15 +57,15 @@ void CommandBuffer::BeginRenderpass(const Renderpass& renderpass, const FrameBuf
 	VkViewport viewport{};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (F32)swapchain.width;
-	viewport.height = (F32)swapchain.height;
+	viewport.width = (F32)Renderer::surfaceWidth;
+	viewport.height = (F32)Renderer::surfaceHeight;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
-	scissor.extent.width = swapchain.width;
-	scissor.extent.height = swapchain.height;
+	scissor.extent.width = Renderer::surfaceWidth;
+	scissor.extent.height = Renderer::surfaceHeight;
 
 	vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);

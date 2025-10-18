@@ -80,10 +80,11 @@ struct NH_API ElementInfo
 
 struct NH_API Text
 {
-public:
-	Text(U32 index, U32 count) : index(index), count(count) {};
-
 private:
+	Text(const Vector2& startPosition, U32 index, U32 count) : startPosition(startPosition), index(index), count(count) {};
+	Text() {};
+
+	Vector2 startPosition;
 	U32 index;
 	U32 count;
 
@@ -129,6 +130,7 @@ class NH_API UI
 public:
 	static ElementRef CreateElement(const ElementInfo& info);
 	static Text CreateText(const ElementInfo& info, const String& text, F32 scale);
+	static bool ChangeText(const Text& text, const String& newText);
 	static void DestroyText(const Text& text);
 
 private:
@@ -154,6 +156,10 @@ private:
 	static F32 textHeight;
 	static Vector2 textPosition;
 	static Vector2 textPadding;
+
+#ifdef NH_DEBUG
+	static Text fpsText;
+#endif
 
 	STATIC_CLASS(UI);
 	friend class Engine;

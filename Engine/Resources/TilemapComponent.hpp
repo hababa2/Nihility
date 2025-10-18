@@ -34,6 +34,7 @@ enum class NH_API TileType
 	SlopeBR
 };
 
+//TODO: saving and loading
 class NH_API Tilemap
 {
 public:

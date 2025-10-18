@@ -1,5 +1,7 @@
 #include "Pipeline.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 #include "Math/Math.hpp"
@@ -184,10 +186,8 @@ bool Pipeline::Create(const PipelineLayout& layout, const PipelineSettings& sett
 
 void Pipeline::Destroy()
 {
-	if (vkPipeline)
-	{
-		vkDestroyPipeline(Renderer::device, vkPipeline, Renderer::allocationCallbacks);
-	}
+	Renderer::ScheduleDestruction(*this);
+	vkPipeline = nullptr;
 }
 
 Pipeline::operator VkPipeline_T* () const

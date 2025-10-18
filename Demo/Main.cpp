@@ -141,11 +141,11 @@ bool Initialize()
 	//Audio::PlayAudioClip(channel, clip);
 
 	EntityRef tilemap = World::CreateEntity();
-
+	
 	backgroundTilemap = Tilemap::AddTo(tilemap, 100, 100, Vector2::Zero, 0.5f, 1.0f);
 	foregroundTilemap = Tilemap::AddTo(tilemap, 100, 100, Vector2::Zero, 1.5f, 0.0f);
 	mainTilemap = Tilemap::AddTo(tilemap, 100, 100, Vector2::Zero, 1.0f, 0.5f);
-
+	
 	TilemapCollider::AddTo(tilemap, mainTilemap);
 
 	return true;

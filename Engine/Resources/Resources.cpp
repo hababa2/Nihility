@@ -558,7 +558,7 @@ String Resources::UploadAudio(const String& path)
 			clip.format.avgBytesPerSec = clip.format.samplesPerSec * clip.format.channelCount * (clip.format.bitsPerSample >> 3);
 			clip.format.blockAlign = (clip.format.channelCount * clip.format.bitsPerSample) >> 3;
 			clip.format.extraSize = 0;
-			clip.size = clip.format.channelCount * flac->totalPCMFrameCount * sizeof(F32);
+			clip.size = (U32)(clip.format.channelCount * flac->totalPCMFrameCount * sizeof(F32));
 			Memory::Allocate(&clip.buffer, clip.size);
 
 			drflac_read_pcm_frames_f32(flac, flac->totalPCMFrameCount, (F32*)clip.buffer);
@@ -575,7 +575,7 @@ String Resources::UploadAudio(const String& path)
 			clip.format.avgBytesPerSec = clip.format.samplesPerSec * clip.format.channelCount * (clip.format.bitsPerSample >> 3);
 			clip.format.blockAlign = (clip.format.channelCount * clip.format.bitsPerSample) >> 3;
 			clip.format.extraSize = 0;
-			clip.size = clip.format.channelCount * mp3.totalPCMFrameCount * sizeof(F32);
+			clip.size = (U32)(clip.format.channelCount * mp3.totalPCMFrameCount * sizeof(F32));
 			Memory::Allocate(&clip.buffer, clip.size);
 
 			drmp3_read_pcm_frames_f32(&mp3, mp3.totalPCMFrameCount, (F32*)clip.buffer);
@@ -585,7 +585,7 @@ String Resources::UploadAudio(const String& path)
 			I32 channelCount;
 			I32 sampleRate;
 			I16* samples;
-			I32 sampleCount = stb_vorbis_decode_memory((U8*)data.Data(), data.Size(), &channelCount, &sampleRate, &samples);
+			I32 sampleCount = stb_vorbis_decode_memory((U8*)data.Data(), (U32)data.Size(), &channelCount, &sampleRate, &samples);
 
 			clip.format.formatTag = 1;
 			clip.format.channelCount = channelCount;

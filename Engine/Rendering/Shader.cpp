@@ -1,5 +1,7 @@
 #include "Shader.hpp"
 
+#include "VulkanInclude.hpp"
+
 #include "Renderer.hpp"
 
 bool Shader::Create(const String& path, ShaderStage type, const StringView& entryPoint)

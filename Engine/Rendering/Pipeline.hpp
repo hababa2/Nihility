@@ -43,6 +43,11 @@ struct VkPipeline_T;
 struct VkVertexInputBindingDescription;
 struct VkVertexInputAttributeDescription;
 
+struct PipelineDestructionData
+{
+	VkPipeline_T* vkPipeline;
+};
+
 struct NH_API Pipeline
 {
 	bool Create(const PipelineLayout& layout, const PipelineSettings& settings, const Vector<Shader>& shaders,
