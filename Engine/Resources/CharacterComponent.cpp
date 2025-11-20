@@ -4,6 +4,7 @@
 
 #include "Platform/Input.hpp"
 #include "Core/Time.hpp"
+#include "Rendering/LineRenderer.hpp"
 
 Vector<Character> Character::components(1, {});
 Freelist Character::freeComponents(1);
@@ -62,6 +63,11 @@ bool Character::Update(Camera& camera, Vector<Entity>& entities)
 		entity.position = character.position;
 
 		camera.Follow(entity.position);
+
+		AABB collider = character.collider + character.position;
+
+		LineRenderer::DrawLine({ collider.lowerBound, { collider.lowerBound.x, collider.upperBound.y }, 
+			collider.upperBound, { collider.upperBound.x, collider.lowerBound.y } }, true, { 0.0f, 1.0f, 1.0f, 1.0f });
 	}
 
 	return false;
@@ -130,6 +136,8 @@ void Character::Simulate()
 	}
 
 	velocity.y -= gravity * dt;
+
+	velocity.y = Math::Max(velocity.y, -1.0f);
 
 	Vector2 frameVelocity = velocity * dt;
 	Vector2 target = position + frameVelocity;

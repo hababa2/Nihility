@@ -14,6 +14,8 @@ Vector<Entity> World::entities(256, {});
 Freelist World::freeEntities(256);
 Camera World::camera;
 
+Hashmap<StringView, void*> World::componentRegistry;
+
 bool World::Initialize()
 {
 	InitializeFns();
@@ -32,6 +34,15 @@ void World::Update()
 
 	camera.Update();
 	UpdateFns(camera, entities);
+}
+
+void World::Register(const StringView& name, void* init, void* shutdown, void* create)
+{
+	World::InitializeFns += (bool(*)())init;
+
+	World::ShutdownFns += (bool(*)())shutdown;
+
+	componentRegistry.Insert(name, create);
 }
 
 void World::Render(CommandBuffer commandBuffer)

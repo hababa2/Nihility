@@ -130,6 +130,7 @@
     <ClInclude Include="Core\Time.hpp" />
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="Engine.hpp" />
+    <ClInclude Include="Introspection.hpp" />
     <ClInclude Include="Math\Hash.hpp" />
     <ClInclude Include="Math\Math.hpp" />
     <ClInclude Include="Math\Physics.hpp" />
@@ -147,7 +148,6 @@
     <ClInclude Include="Rendering\DescriptorSet.hpp" />
     <ClInclude Include="Rendering\Device.hpp" />
     <ClInclude Include="Rendering\Instance.hpp" />
-    <ClInclude Include="Rendering\Lighting.hpp" />
     <ClInclude Include="Rendering\LineRenderer.hpp" />
     <ClInclude Include="Rendering\PhysicalDevice.hpp" />
     <ClInclude Include="Rendering\Pipeline.hpp" />
@@ -218,7 +218,6 @@
     <ClCompile Include="Rendering\DescriptorSet.cpp" />
     <ClCompile Include="Rendering\Device.cpp" />
     <ClCompile Include="Rendering\Instance.cpp" />
-    <ClCompile Include="Rendering\Lighting.cpp" />
     <ClCompile Include="Rendering\LineRenderer.cpp" />
     <ClCompile Include="Rendering\PhysicalDevice.cpp" />
     <ClCompile Include="Rendering\Pipeline.cpp" />

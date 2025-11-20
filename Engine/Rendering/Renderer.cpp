@@ -3,7 +3,6 @@
 #include "VulkanInclude.hpp"
 
 #include "CommandBufferRing.hpp"
-#include "Lighting.hpp"
 #include "UI.hpp"
 #include "LineRenderer.hpp"
 
@@ -237,7 +236,6 @@ bool Renderer::Synchronize()
 	
 	if (res == VK_ERROR_OUT_OF_DATE_KHR)
 	{
-		Logger::Debug("After Acquire");
 		RecreateSwapchain();
 		VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired[i], VK_NULL_HANDLE, &imageIndex);
 	}
@@ -371,14 +369,9 @@ void Renderer::Submit()
 
 	previousFrame = frameIndex;
 	++frameIndex %= imageCount;
-
 	++absoluteFrame;
 
-	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
-	{
-		Logger::Debug("After Present");
-		RecreateSwapchain();
-	}
+	if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR) { RecreateSwapchain(); }
 	else { VkValidateF(res); }
 }
 

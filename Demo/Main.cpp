@@ -30,21 +30,13 @@ ComponentRef<Character> character;
 
 void ComponentsInit()
 {
-	World::InitializeFns += Character::Initialize;
-	World::InitializeFns += Projectile::Initialize;
-	World::InitializeFns += Collider::Initialize;
-	World::InitializeFns += Tilemap::Initialize;
-	World::InitializeFns += TilemapCollider::Initialize;
-	World::InitializeFns += Animation::Initialize;
-	World::InitializeFns += Sprite::Initialize;
-
-	World::ShutdownFns += Sprite::Shutdown;
-	World::ShutdownFns += Animation::Shutdown;
-	World::ShutdownFns += TilemapCollider::Shutdown;
-	World::ShutdownFns += Tilemap::Shutdown;
-	World::ShutdownFns += Collider::Shutdown;
-	World::ShutdownFns += Projectile::Shutdown;
-	World::ShutdownFns += Character::Shutdown;
+	World::RegisterComponent<Character>();
+	World::RegisterComponent<Projectile>();
+	World::RegisterComponent<Collider>();
+	World::RegisterComponent<Tilemap>();
+	World::RegisterComponent<TilemapCollider>();
+	World::RegisterComponent<Animation>();
+	World::RegisterComponent<Sprite>();
 }
 
 bool hover(Element& element)
