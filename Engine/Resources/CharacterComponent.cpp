@@ -137,8 +137,6 @@ void Character::Simulate()
 
 	velocity.y -= gravity * dt;
 
-	velocity.y = Math::Max(velocity.y, -1.0f);
-
 	Vector2 frameVelocity = velocity * dt;
 	Vector2 target = position + frameVelocity;
 	Collision collision;

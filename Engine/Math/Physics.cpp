@@ -77,8 +77,8 @@ Collision Physics::CheckCollision(const AABB& collider)
 
 		Vector2Int xy = { (I32)Math::Floor(tilemapPosition.x), (I32)Math::Floor(tilemapPosition.y) };
 
-		U32 width = (U32)Math::Ceiling((collider.upperBound.x - collider.lowerBound.x) / col.tileSize.x);
-		U32 height = (U32)Math::Ceiling((collider.upperBound.y - collider.lowerBound.y) / col.tileSize.y);
+		U32 width = (U32)Math::Ceiling((collider.upperBound.x - collider.lowerBound.x) / col.tileSize.x + 0.5f);
+		U32 height = (U32)Math::Ceiling((collider.upperBound.y - collider.lowerBound.y) / col.tileSize.y + 0.5f);
 
 		for (I32 x = (I32)(tilemapPosition.x - width); x < (I32)(tilemapPosition.x + width); ++x)
 		{
