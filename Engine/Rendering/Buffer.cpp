@@ -9,8 +9,11 @@
 
 #include "vma/vk_mem_alloc.h"
 
-bool Buffer::Create(BufferType type, U64 size)
+bool Buffer::Create(BufferType type, U64 size, const String& name)
 {
+	if (!name) { BreakPoint; }
+
+	this->name = name;
 	this->type = type;
 
 	VkBufferCreateInfo bufferCreateInfo{
@@ -42,12 +45,14 @@ bool Buffer::Create(BufferType type, U64 size)
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBuffer, &bufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBuffer, name); }
 
 		bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBufferStaging, &stagingBufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBufferStaging, name + "_staging"); }
 
 		bufferSize = size;
 	} return true;
@@ -56,11 +61,13 @@ bool Buffer::Create(BufferType type, U64 size)
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBuffer, &bufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBuffer, name); }
 
 		bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBufferStaging, &stagingBufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBufferStaging, name + "_staging"); }
 
 		bufferSize = size;
 	} return true;
@@ -69,6 +76,7 @@ bool Buffer::Create(BufferType type, U64 size)
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBuffer, &bufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBuffer, name); }
 
 		bufferSize = size;
 	} return true;
@@ -77,6 +85,7 @@ bool Buffer::Create(BufferType type, U64 size)
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBuffer, &bufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBuffer, name); }
 
 		bufferSize = size;
 	} return true;
@@ -85,6 +94,7 @@ bool Buffer::Create(BufferType type, U64 size)
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
 		VkValidateR(vmaCreateBuffer(Renderer::vmaAllocator, &bufferCreateInfo, &allocationCreateInfo, &vkBuffer, &bufferAllocation, nullptr));
+		if (name) { Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vkBuffer, name); }
 	} return true;
 	}
 
@@ -111,7 +121,7 @@ bool Buffer::UploadVertexData(const void* vertexData, U64 size, U64 offset)
 	{
 		Destroy();
 
-		if (!Create(type, size)) { return false; }
+		if (!Create(type, size, name)) { return false; }
 
 		bufferSize = size;
 	}
@@ -162,7 +172,7 @@ bool Buffer::UploadIndexData(const void* indexData, U64 size, U64 offset)
 	if (bufferSize < size)
 	{
 		Destroy();
-		if (!Create(type, size)) { return false; }
+		if (!Create(type, size, name)) { return false; }
 
 		bufferSize = size;
 	}
@@ -214,7 +224,7 @@ bool Buffer::UploadStorageData(const void* storageData, U64 size, U64 offset)
 	if (size > bufferSize)
 	{
 		Destroy();
-		Create(type, size);
+		if (!Create(type, size, name)) { return false; }
 		bufferResized = true;
 	}
 

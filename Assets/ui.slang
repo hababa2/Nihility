@@ -1,44 +1,51 @@
-static const uint INVALID_TEXTURE_INDEX = 65535;
+#include "ShaderIncludes/ShaderTypes.h"
 
-[[vk::binding(1, 10)]]
+[[vk::binding(0, 0)]]
+[GlobalTextures]
 Sampler2D globalTextures[];
 
-struct VSInput
+[[vk::binding(0, 1)]] StructuredBuffer<SpriteData> spriteBuffer;
+
+struct VertexInput
 {
     float2 position;
-    float2 texcoord;
-
-    float2 instPosition;
-    float2 instScale;
-    float2 instQuat;
-    float4 instColor;
-    float2 instTexcoord;
-    float2 instTexcoordScale;
-    uint textureIndex;
+    float2 uv;
+    float4 color;
+    uint texIndex;
 };
 
-struct VSOutput
+struct VertexOutput
 {
-    float4 position : SV_POSITION;
-    float2 texcoord;
-    float4 color;
-    uint textureIndex;
+    float4 position : SV_Position;
+    float2 fragUV;
+    float4 fragColor;
+    nointerpolation uint fragTexIndex;
 };
 
 [shader("vertex")]
-VSOutput vertexMain(VSInput input)
+VertexOutput vertexMain(VertexInput input)
 {
-    VSOutput output;
-    output.position = float4(input.position * input.instScale + input.instPosition, 0.0, 1.0);
-    output.texcoord = input.texcoord * input.instTexcoordScale + input.instTexcoord;
-    output.color = input.instColor;
-    output.textureIndex = input.textureIndex;
+    VertexOutput output;
+
+    output.position = float4(input.position, 0.0, 1.0);
+
+    output.fragUV = input.uv;
+    output.fragColor = input.color;
+    output.fragTexIndex = input.texIndex;
+
     return output;
 }
 
 [shader("fragment")]
-float4 fragmentMain(VSOutput input)
+float4 fragmentMain(VertexOutput input) : SV_Target
 {
-    if (input.textureIndex != INVALID_TEXTURE_INDEX) { return globalTextures[input.textureIndex].Sample(input.texcoord) * input.color; }
-    else { return input.color; }
+    if (input.fragTexIndex == 0xFFFFFFFF)
+    {
+        return input.fragColor;
+    }
+    else
+    {
+        float4 texColor = globalTextures[NonUniformResourceIndex(input.fragTexIndex)].Sample(input.fragUV);
+        return texColor;
+    }
 }

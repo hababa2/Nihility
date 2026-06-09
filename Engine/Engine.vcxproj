@@ -21,13 +21,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -76,7 +76,8 @@
       </Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>cmd /c "C:\Vacuum Tube Studio\The Shadow of KanFa\CopyBinaries.bat"</Command>
+      <Command>cmd /c "C:\Vacuum Tube Studio\The Shadow of KanFa\CopyBinaries.bat"
+cmd /c "C:\Vacuum Tube Studio\Drum Hero\CopyBinaries.bat"</Command>
       <Message>TODO: more generalized form of this to copy to all projects</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -109,7 +110,8 @@
       </Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>cmd /c "C:\Vacuum Tube Studio\The Shadow of KanFa\CopyBinaries.bat"</Command>
+      <Command>cmd /c "C:\Vacuum Tube Studio\The Shadow of KanFa\CopyBinaries.bat"
+cmd /c "C:\Vacuum Tube Studio\Drum Hero\CopyBinaries.bat"</Command>
       <Message>TODO: more generalized form of this to copy to all projects</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>

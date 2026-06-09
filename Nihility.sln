@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.12.35707.178
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11408.92
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Engine", "Engine\Engine.vcxproj", "{786052CC-8853-4066-B83D-16026AF05748}"
 EndProject
@@ -11,6 +11,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Demo", "Demo\Demo.vcxproj",
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "The Shadow of KanFa", "..\The Shadow of KanFa\The Shadow of KanFa.vcxproj", "{F4067A48-3574-4851-8EDA-7ADBBB563FA6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Drum Hero", "..\Drum Hero\Drum Hero.vcxproj", "{B5F76BD7-0373-4F35-9059-51390A8AA98D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Nihility", "Nihility\Nihility.vcxproj", "{52B53CFB-E4C4-4FBF-AC6D-6D15F8AC94D9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DemoNew", "DemoNew\DemoNew.vcxproj", "{DA2E370B-1DD6-496D-9DC3-515C86B46918}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,6 +36,18 @@ Global
 		{F4067A48-3574-4851-8EDA-7ADBBB563FA6}.Debug|x64.Build.0 = Debug|x64
 		{F4067A48-3574-4851-8EDA-7ADBBB563FA6}.Release|x64.ActiveCfg = Release|x64
 		{F4067A48-3574-4851-8EDA-7ADBBB563FA6}.Release|x64.Build.0 = Release|x64
+		{B5F76BD7-0373-4F35-9059-51390A8AA98D}.Debug|x64.ActiveCfg = Debug|x64
+		{B5F76BD7-0373-4F35-9059-51390A8AA98D}.Debug|x64.Build.0 = Debug|x64
+		{B5F76BD7-0373-4F35-9059-51390A8AA98D}.Release|x64.ActiveCfg = Release|x64
+		{B5F76BD7-0373-4F35-9059-51390A8AA98D}.Release|x64.Build.0 = Release|x64
+		{52B53CFB-E4C4-4FBF-AC6D-6D15F8AC94D9}.Debug|x64.ActiveCfg = Debug|x64
+		{52B53CFB-E4C4-4FBF-AC6D-6D15F8AC94D9}.Debug|x64.Build.0 = Debug|x64
+		{52B53CFB-E4C4-4FBF-AC6D-6D15F8AC94D9}.Release|x64.ActiveCfg = Release|x64
+		{52B53CFB-E4C4-4FBF-AC6D-6D15F8AC94D9}.Release|x64.Build.0 = Release|x64
+		{DA2E370B-1DD6-496D-9DC3-515C86B46918}.Debug|x64.ActiveCfg = Debug|x64
+		{DA2E370B-1DD6-496D-9DC3-515C86B46918}.Debug|x64.Build.0 = Debug|x64
+		{DA2E370B-1DD6-496D-9DC3-515C86B46918}.Release|x64.ActiveCfg = Release|x64
+		{DA2E370B-1DD6-496D-9DC3-515C86B46918}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

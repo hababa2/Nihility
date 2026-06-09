@@ -64,6 +64,7 @@ Vector<TextureDestructionData> Renderer::texturesToDestroy;
 Vector<BufferDestructionData> Renderer::buffersToDestroy;
 Vector<PipelineDestructionData> Renderer::pipelinesToDestroy;
 Vector<DescriptorSetDestructionData> Renderer::descriptorSetsToDestroy;
+Vector<VkSemaphore_T*> Renderer::semaphoresToDestroy;
 
 #ifdef NH_DEBUG
 SetObjectNameFN Renderer::SetObjectName;
@@ -215,8 +216,8 @@ bool Renderer::Synchronize()
 	U32 i = absoluteFrame % imageCount;
 	VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquired[i], VK_NULL_HANDLE, &imageIndex);
 	
-	VkSemaphore waits[]{ renderFinished[previousFrame], transferFinished[previousFrame] };
-	U64 waitValues[]{ renderWaitValues[previousFrame], transferWaitValues[previousFrame] };
+	VkSemaphore waits[]{ renderFinished[frameIndex], transferFinished[frameIndex] };
+	U64 waitValues[]{ renderWaitValues[frameIndex], transferWaitValues[frameIndex] };
 	
 	VkSemaphoreWaitInfo waitInfo{
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
@@ -737,8 +738,7 @@ bool Renderer::CreateStagingBuffers()
 {
 	for (U32 i = 0; i < imageCount; ++i)
 	{
-		stagingBuffers[i].Create(BufferType::Staging, Gigabytes(1));
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, stagingBuffers[i], { FORMAT, "Staging Buffer ", i});
+		stagingBuffers[i].Create(BufferType::Staging, Gigabytes(1), { FORMAT, "Staging Buffer ", i });
 	}
 
 	return true;
@@ -767,6 +767,11 @@ void Renderer::ScheduleDestruction(Pipeline& pipeline)
 void Renderer::ScheduleDestruction(DescriptorSet& descriptorSet)
 {
 	descriptorSetsToDestroy.Emplace(descriptorSet.vkDescriptorLayout, descriptorSet.vkDescriptorSet, descriptorSet.bindless);
+}
+
+void Renderer::ScheduleDestruction(VkSemaphore_T* semaphore)
+{
+	semaphoresToDestroy.Emplace(semaphore);
 }
 
 void Renderer::DestroyObjects()
@@ -823,6 +828,14 @@ void Renderer::DestroyObjects()
 	}
 
 	descriptorSetsToDestroy.Clear();
+
+	//SEMAPHORE
+	for (VkSemaphore_T* data : semaphoresToDestroy)
+	{
+		if (data) { vkDestroySemaphore(device, data, allocationCallbacks); }
+	}
+
+	semaphoresToDestroy.Clear();
 }
 
 bool Renderer::RecreateSwapchain()
@@ -852,7 +865,7 @@ bool Renderer::RecreateSwapchain()
 
 bool Renderer::UploadTexture(Resource<Texture>& texture, void* data, const Sampler& sampler)
 {
-	U64 offset = NextMultipleOf(stagingBuffers[imageIndex].StagingPointer(), 16);
+	U64 offset = NextMultipleOf(stagingBuffers[imageIndex].StagingPointer(), 256);
 
 	stagingBuffers[imageIndex].UploadStagingData(data, texture->size, offset);
 

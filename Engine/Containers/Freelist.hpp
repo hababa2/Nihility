@@ -89,7 +89,7 @@ inline U32 Freelist::GetFree()
 
 	U32 index = SafeDecrement(&freeCount);
 
-	if (index < capacity) { ++used; if (freeCount > 10000) { BreakPoint; } return freeIndices[index]; }
+	if (index < capacity) { ++used; return freeIndices[index]; }
 
 	++used;
 	++freeCount;
@@ -99,9 +99,6 @@ inline U32 Freelist::GetFree()
 
 inline void Freelist::Release(U32 index)
 {
-#ifdef NH_DEBUG
-	for (U32 i = 0; i < freeCount; ++i) { if (freeIndices[i] == index) { BreakPoint; } }
-#endif
 	--used;
 	freeIndices[SafeIncrement(&freeCount) - 1] = index;
 }

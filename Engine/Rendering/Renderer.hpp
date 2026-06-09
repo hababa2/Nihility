@@ -76,6 +76,7 @@ private:
 	static void ScheduleDestruction(Buffer& buffer);
 	static void ScheduleDestruction(Pipeline& pipeline);
 	static void ScheduleDestruction(DescriptorSet& descriptorSet);
+	static void ScheduleDestruction(VkSemaphore_T* semaphore);
 	static void DestroyObjects();
 
 	static bool RecreateSwapchain();
@@ -126,6 +127,7 @@ private:
 	static Vector<BufferDestructionData> buffersToDestroy;
 	static Vector<PipelineDestructionData> pipelinesToDestroy;
 	static Vector<DescriptorSetDestructionData> descriptorSetsToDestroy;
+	static Vector<VkSemaphore_T*> semaphoresToDestroy;
 
 	//Debug
 #ifdef NH_DEBUG

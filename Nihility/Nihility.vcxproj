@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{52b53cfb-e4c4-4fbf-ac6d-6d15f8ac94d9}</ProjectGuid>
+    <RootNamespace>Nihility</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)Bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Bin\Int\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)Bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Bin\Int\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NH_EXPORT;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source;</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)Lib/libsndfile/sndfile.lib;$(SolutionDir)Lib/slang/slang.lib;%VULKAN_SDK%/Lib/vulkan-1.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NH_EXPORT;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source;</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)Lib/libsndfile/sndfile.lib;$(SolutionDir)Lib/slang/slang.lib;%VULKAN_SDK%/Lib/vulkan-1.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Assets\ShaderIncludes\ShaderTypes.h" />
+    <ClInclude Include="Components\Components.hpp" />
+    <ClInclude Include="Components\Registry.hpp" />
+    <ClInclude Include="Containers\CircularQueue.hpp" />
+    <ClInclude Include="Containers\Pool.hpp" />
+    <ClInclude Include="Containers\SparseSet.hpp" />
+    <ClInclude Include="Core\Containers.hpp" />
+    <ClInclude Include="Core\DataReader.hpp" />
+    <ClInclude Include="Core\DataWriter.hpp" />
+    <ClInclude Include="Core\Events.hpp" />
+    <ClInclude Include="Core\File.hpp" />
+    <ClInclude Include="Core\Logger.hpp" />
+    <ClInclude Include="Core\Settings.hpp" />
+    <ClInclude Include="Core\Time.hpp" />
+    <ClInclude Include="Defines.hpp" />
+    <ClInclude Include="Nihility.hpp" />
+    <ClInclude Include="Physics\Physics.hpp" />
+    <ClInclude Include="Physics\Tilemap.hpp" />
+    <ClInclude Include="Platform\Audio.hpp" />
+    <ClInclude Include="Platform\Input.hpp" />
+    <ClInclude Include="Platform\Memory.hpp" />
+    <ClInclude Include="Platform\Multithreading.hpp" />
+    <ClInclude Include="Platform\Platform.hpp" />
+    <ClInclude Include="Platform\WindowsInclude.hpp" />
+    <ClInclude Include="Rendering\Buffer.hpp" />
+    <ClInclude Include="Rendering\Device.hpp" />
+    <ClInclude Include="Rendering\FrameArena.hpp" />
+    <ClInclude Include="Rendering\Instance.hpp" />
+    <ClInclude Include="Rendering\PhysicalDevice.hpp" />
+    <ClInclude Include="Rendering\Renderer.hpp" />
+    <ClInclude Include="Rendering\RenderingDefines.hpp" />
+    <ClInclude Include="Rendering\RenderTarget.hpp" />
+    <ClInclude Include="Rendering\Shader.hpp" />
+    <ClInclude Include="Rendering\Swapchain.hpp" />
+    <ClInclude Include="Rendering\UI.hpp" />
+    <ClInclude Include="Rendering\VulkanInclude.hpp" />
+    <ClInclude Include="Resources\AudioClip.hpp" />
+    <ClInclude Include="Resources\Font.hpp" />
+    <ClInclude Include="Resources\Resources.hpp" />
+    <ClInclude Include="Resources\Scene.hpp" />
+    <ClInclude Include="Resources\Texture.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Lib\bc7enc_rdo\bc7enc.cpp" />
+    <ClCompile Include="..\Lib\enkiTS\TaskScheduler.cpp" />
+    <ClCompile Include="..\Lib\enkiTS\TaskScheduler_c.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\contour-combiners.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\Contour.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\DistanceMapping.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\edge-coloring.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\edge-segments.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\edge-selectors.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\EdgeHolder.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\equation-solver.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\msdf-error-correction.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\MSDFErrorCorrection.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\msdfgen.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\Projection.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\rasterization.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\render-sdf.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\Scanline.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\sdf-error-estimation.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\shape-description.cpp" />
+    <ClCompile Include="..\Lib\msdfgen\core\Shape.cpp" />
+    <ClCompile Include="..\Lib\simdjson\simdjson.cpp" />
+    <ClCompile Include="..\Lib\stb\stb_vorbis.c" />
+    <ClCompile Include="Components\Registry.cpp" />
+    <ClCompile Include="Core\DataReader.cpp" />
+    <ClCompile Include="Core\Events.cpp" />
+    <ClCompile Include="Core\File.cpp" />
+    <ClCompile Include="Core\Logger.cpp" />
+    <ClCompile Include="Core\Settings.cpp" />
+    <ClCompile Include="Core\Time.cpp" />
+    <ClCompile Include="Nihility.cpp" />
+    <ClCompile Include="Physics\Physics.cpp" />
+    <ClCompile Include="Physics\Tilemap.cpp" />
+    <ClCompile Include="Platform\Audio.cpp" />
+    <ClCompile Include="Platform\Input.cpp" />
+    <ClCompile Include="Platform\Memory.cpp" />
+    <ClCompile Include="Platform\PlatformWindows.cpp" />
+    <ClCompile Include="Rendering\Device.cpp" />
+    <ClCompile Include="Rendering\Instance.cpp" />
+    <ClCompile Include="Rendering\PhysicalDevice.cpp" />
+    <ClCompile Include="Rendering\Renderer.cpp" />
+    <ClCompile Include="Rendering\RenderTarget.cpp" />
+    <ClCompile Include="Rendering\Shader.cpp" />
+    <ClCompile Include="Rendering\Swapchain.cpp" />
+    <ClCompile Include="Rendering\UI.cpp" />
+    <ClCompile Include="Resources\Font.cpp" />
+    <ClCompile Include="Resources\Resources.cpp" />
+    <ClCompile Include="Resources\Scene.cpp" />
+    <ClCompile Include="Resources\Texture.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -59,10 +59,8 @@ bool Tilemap::Initialize()
 		tilemapPipeline.Create(tilemapPipelineLayout, { PolygonMode::Fill }, { tilemapVertexShader, tilemapFragmentShader }, inputs, attributes);
 		tilemapMaterial.Create(tilemapPipelineLayout, tilemapPipeline, { tilemapDescriptor, Resources::BindlessTexturesDescriptorSet() });
 
-		tilemapData.Create(BufferType::Storage, sizeof(TilemapData) * 16);
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, tilemapData, "Tilemap Data");
-		tilesData.Create(BufferType::Storage, Megabytes(4));
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, tilesData, "Tiles Data");
+		tilemapData.Create(BufferType::Storage, sizeof(TilemapData) * 16, "Tilemap Data");
+		tilesData.Create(BufferType::Storage, Megabytes(4), "Tiles Data");
 
 		World::UpdateFns += Update;
 		World::RenderFns += Render;

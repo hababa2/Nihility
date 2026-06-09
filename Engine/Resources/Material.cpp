@@ -15,21 +15,15 @@ bool Material::Create(const PipelineLayout& pipelineLayout, const Pipeline& pipe
 
 	if (pipeline.VertexSize())
 	{
-		vertexBuffer.Create(BufferType::Vertex, pipeline.VertexSize() * 4);
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vertexBuffer, "Material Vertex Buffer");
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, vertexBuffer, "Material Vertex Staging Buffer");
-		indexBuffer.Create(BufferType::Index, sizeof(U32) * 6);
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, indexBuffer, "Material Index Buffer");
-		Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, indexBuffer, "Material Index Staging Buffer");
+		vertexBuffer.Create(BufferType::Vertex, pipeline.VertexSize() * 4, "Material Vertex Buffer");
+		indexBuffer.Create(BufferType::Index, sizeof(U32) * 6, "Material Index Buffer");
 	}
 
 	if (pipeline.InstanceSize())
 	{
 		for (U32 i = 0; i < Renderer::imageCount; ++i)
 		{
-			instanceBuffers[i].Create(BufferType::Vertex, pipeline.InstanceSize() * 10000);
-			Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, instanceBuffers[i], { FORMAT, "Material Instance Buffer ", i });
-			Renderer::NameResource(VK_OBJECT_TYPE_BUFFER, instanceBuffers[i], { FORMAT, "Material Instance Staging Buffer ", i });
+			instanceBuffers[i].Create(BufferType::Vertex, pipeline.InstanceSize() * 10000, { FORMAT, "Material Instance Buffer ", i });
 		}
 	}
 

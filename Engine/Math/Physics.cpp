@@ -65,7 +65,6 @@ void Physics::RemoveTilemapCollider(U32 index)
 
 }
 
-
 Collision Physics::CheckCollision(const AABB& collider)
 {
 	Vector2 center = collider.lowerBound + (collider.upperBound - collider.lowerBound) * 0.5f;

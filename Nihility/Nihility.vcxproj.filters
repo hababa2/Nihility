@@ -1,0 +1,325 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Platform">
+      <UniqueIdentifier>{7e2eb2f4-88f4-4482-95f9-8fea4dd8b1f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core">
+      <UniqueIdentifier>{f01556af-0533-448d-983b-773cf2bdeaca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{a5221f71-a957-4f39-8a32-7dcee4879c08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Resources">
+      <UniqueIdentifier>{089d0a29-7872-472d-8758-a750ebb862d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\stb">
+      <UniqueIdentifier>{2a48b264-a472-4153-a0ba-1fd24241cd82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Rendering">
+      <UniqueIdentifier>{a01666a6-075f-4256-8748-e60e2c9747fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\enkiTS">
+      <UniqueIdentifier>{2d87050c-923f-42dc-b6c7-ef9043497723}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Containers">
+      <UniqueIdentifier>{78a4a21a-9580-47c8-8bac-523fc3e34ad2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ShaderIncludes">
+      <UniqueIdentifier>{ffb18169-d51f-4747-9f0f-ba418759ed20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\bc7enc_rdo">
+      <UniqueIdentifier>{57e3d0b6-7b7f-4333-b38e-78f21330f688}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Components">
+      <UniqueIdentifier>{49c40e50-7d11-4d2b-bcd6-66917f0f8ce0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Physics">
+      <UniqueIdentifier>{bc81381c-b8b9-4950-99ee-8f75b7c557fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\simdjson">
+      <UniqueIdentifier>{1ef9a33f-c88e-4c23-b78f-0035e2b5fd8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\msdfgen">
+      <UniqueIdentifier>{e25ad1d2-9c55-4f06-abcf-78f164790ac0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Nihility.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Defines.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Platform.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Memory.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\WindowsInclude.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Input.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Containers.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Time.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\File.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Logger.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Multithreading.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Settings.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\Resources.hpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\Texture.hpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\DataReader.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\DataWriter.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Events.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\FrameArena.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Renderer.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\VulkanInclude.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Device.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\PhysicalDevice.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Containers\CircularQueue.hpp">
+      <Filter>Source Files\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Instance.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Swapchain.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Containers\Pool.hpp">
+      <Filter>Source Files\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Shader.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Assets\ShaderIncludes\ShaderTypes.h">
+      <Filter>Source Files\ShaderIncludes</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\Components.hpp">
+      <Filter>Source Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\Registry.hpp">
+      <Filter>Source Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Containers\SparseSet.hpp">
+      <Filter>Source Files\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\RenderingDefines.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Audio.hpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\AudioClip.hpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\Physics.hpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\Tilemap.hpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\Scene.hpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Buffer.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\UI.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\Font.hpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\RenderTarget.hpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Nihility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\PlatformWindows.cpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Input.cpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Time.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Memory.cpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\File.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Logger.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Settings.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\stb\stb_vorbis.c">
+      <Filter>Lib\stb</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\Resources.cpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\DataReader.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Events.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\enkiTS\TaskScheduler.cpp">
+      <Filter>Lib\enkiTS</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\enkiTS\TaskScheduler_c.cpp">
+      <Filter>Lib\enkiTS</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Renderer.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Device.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\PhysicalDevice.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Instance.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Swapchain.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Shader.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\Texture.cpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\bc7enc_rdo\bc7enc.cpp">
+      <Filter>Lib\bc7enc_rdo</Filter>
+    </ClCompile>
+    <ClCompile Include="Components\Registry.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Audio.cpp">
+      <Filter>Source Files\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\Physics.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\Tilemap.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\simdjson\simdjson.cpp">
+      <Filter>Lib\simdjson</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\Scene.cpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\UI.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\Font.cpp">
+      <Filter>Source Files\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\Contour.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\contour-combiners.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\DistanceMapping.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\edge-coloring.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\EdgeHolder.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\edge-segments.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\edge-selectors.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\equation-solver.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\MSDFErrorCorrection.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\msdf-error-correction.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\msdfgen.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\Projection.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\rasterization.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\render-sdf.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\Scanline.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\sdf-error-estimation.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\Shape.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\msdfgen\core\shape-description.cpp">
+      <Filter>Lib\msdfgen</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\RenderTarget.cpp">
+      <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

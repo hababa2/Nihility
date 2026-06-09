@@ -4,6 +4,7 @@
 
 #include "Resources/ResourceDefines.hpp"
 #include "Containers/Vector.hpp"
+#include "Containers/String.hpp"
 #include "Math/Math.hpp"
 
 struct VmaAllocation_T;
@@ -32,7 +33,7 @@ struct BufferDestructionData
 struct NH_API Buffer
 {
 public:
-	bool Create(BufferType type, U64 size = 1024);
+	bool Create(BufferType type, U64 size = 1024, const String& name = "");
 	void Destroy();
 
 	bool UploadVertexData(const void* vertexData, U64 size, U64 offset = 0);
@@ -52,6 +53,7 @@ public:
 private:
 	bool CheckForResize(U64 bufferSize);
 
+	String name;
 	BufferType type;
 	U64 bufferSize = 0;
 	U64 stagingPointer = 0;
