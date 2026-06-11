@@ -4,6 +4,7 @@
 
 #include "Platform/Platform.hpp"
 #include "Platform/Input.hpp"
+#include "Core/Time.hpp"
 #include "Core/Settings.hpp"
 #include "Rendering/Renderer.hpp"
 #include "Resources/Font.hpp"
@@ -18,13 +19,14 @@ U32 UI::currentGlobalZ = 100;
 Shader UI::uiShader;
 Buffer UI::uiVertexBuffers[MaxFramesInFlight];
 Buffer UI::uiIndexBuffers[MaxFramesInFlight];
-Vector<UIDrawCmd> UI::panelDrawCommands[MaxFramesInFlight];
 
 Shader UI::textShader;
 Buffer UI::textVertexBuffers[MaxFramesInFlight];
 Buffer UI::textIndexBuffers[MaxFramesInFlight];
-Vector<UIDrawCmd> UI::textDrawCommands[MaxFramesInFlight];
 
+Vector<UIDrawCmd> UI::drawCommands[MaxFramesInFlight];
+
+U32 UI::focusedEntity = U32_MAX;
 U32 UI::hoveredEntity = U32_MAX;
 U32 UI::activeEntity = U32_MAX;
 bool UI::cursorChanged;
@@ -88,8 +90,7 @@ void UI::Update()
 {
 	UpdateInput();
 	UpdateLayouts();
-	UpdatePanels();
-	UpdateText();
+	UpdateVisuals();
 }
 
 void UI::UpdateInput()
@@ -114,6 +115,16 @@ void UI::UpdateInput()
 	{
 		auto [rect] = view.Get(id);
 		glm::vec2 pos = GetAbsoluteUIPosition(id);
+		Scissor scissor = GetAbsoluteScissor(id);
+
+		if (scissor.extent.x == 0 || scissor.extent.y == 0) { continue; }
+
+		bool insideScissor = mousePos.x >= scissor.offset.x &&
+			mousePos.x <= scissor.offset.x + scissor.extent.x &&
+			mousePos.y >= scissor.offset.y &&
+			mousePos.y <= scissor.offset.y + scissor.extent.y;
+
+		if (!insideScissor) { continue; }
 
 		if (mousePos.x >= pos.x && mousePos.x <= pos.x + rect.size.x &&
 			mousePos.y >= pos.y && mousePos.y <= pos.y + rect.size.y)
@@ -123,9 +134,10 @@ void UI::UpdateInput()
 		}
 	}
 
-	if (Input::OnButtonDown(ButtonCode::LeftMouse) && hoveredEntity != U32_MAX)
+	if (Input::OnButtonDown(ButtonCode::LeftMouse))
 	{
 		activeEntity = hoveredEntity;
+		focusedEntity = hoveredEntity;
 
 		U32 searchId = activeEntity;
 		while (searchId != U32_MAX)
@@ -155,6 +167,9 @@ void UI::UpdateInput()
 
 	auto scrollView = Registry::View<UIScrollArea>();
 	for (U32 i = 0; i < scrollView.Size(); ++i) { ProcessScrollArea(scrollView.GetEntity(i)); }
+
+	auto textInputView = Registry::View<UITextInput>();
+	for (U32 i = 0; i < textInputView.Size(); ++i) { ProcessTextInput(textInputView.GetEntity(i)); }
 
 	if (Input::OnButtonUp(ButtonCode::LeftMouse))
 	{
@@ -190,8 +205,7 @@ void UI::UpdateLayouts()
 		U32 id = scrollView.GetEntity(i);
 		if (!scrollView.Matches(id)) { continue; }
 
-		auto& scroll = Registry::GetComponent<UIScrollArea>(id);
-		auto& maskRect = Registry::GetComponent<UIRect>(id);
+		auto [scroll, maskRect] = scrollView.Get(id);
 
 		if (scroll.contentEntity != U32_MAX && Registry::HasComponent<UIRect>(scroll.contentEntity))
 		{
@@ -205,16 +219,73 @@ void UI::UpdateLayouts()
 					if (Registry::HasComponent<UIRect>(child.Id()))
 					{
 						UIRect& childRect = Registry::GetComponent<UIRect>(child.Id());
-						maxChildY = std::max(maxChildY, childRect.position.y + childRect.size.y);
+						maxChildY = glm::max(maxChildY, childRect.position.y + childRect.size.y);
 					}
 				}
 			}
 
-			F32 maxScroll = std::max(0.0f, maxChildY - maskRect.size.y);
+			maxChildY += scroll.padding;
 
-			scroll.scrollOffset.y = std::clamp(scroll.scrollOffset.y, -maxScroll, 0.0f);
+			Scissor scissor = GetAbsoluteScissor(id);
+			F32 trueVisibleHeight = (F32)scissor.extent.y;
 
+			F32 maxScroll = glm::max(0.0f, maxChildY - trueVisibleHeight);
+
+			scroll.scrollOffset.y = glm::clamp(scroll.scrollOffset.y, -maxScroll, scroll.padding);
 			contentRect.position.y = scroll.scrollOffset.y;
+		}
+	}
+
+	auto inputView = Registry::View<UITextInput, UIRect>();
+	for (U32 i = 0; i < inputView.Size(); ++i)
+	{
+		U32 id = inputView.GetEntity(i);
+		if (!inputView.Matches(id)) { continue; }
+
+		auto [input, rootRect] = inputView.Get(id);
+
+		if (input.textEntity != U32_MAX && input.caretEntity != U32_MAX)
+		{
+			auto& textComp = Registry::GetComponent<UIText>(input.textEntity);
+			auto& textRect = Registry::GetComponent<UIRect>(input.textEntity);
+			auto& caretRect = Registry::GetComponent<UIRect>(input.caretEntity);
+			auto& caretPanel = Registry::GetComponent<UIPanel>(input.caretEntity);
+			
+			input.caretIndex = glm::clamp(input.caretIndex, 0u, (U32)input.text.length());
+
+			F32 cursorPixelOffset = GetTextWidthUpToIndex(textComp, input.caretIndex);
+
+			F32 leftPadding = 6.0f;
+			F32 rightPadding = 12.0f;
+			F32 visibleWidth = rootRect.size.x - leftPadding - rightPadding;
+			F32 visualCursorX = cursorPixelOffset - input.scrollOffset;
+
+			if (visualCursorX > visibleWidth)
+			{
+				input.scrollOffset = cursorPixelOffset - visibleWidth;
+			}
+			else if (visualCursorX < 0.0f)
+			{
+				input.scrollOffset = cursorPixelOffset;
+			}
+
+			F32 totalTextWidth = GetTextWidthUpToIndex(textComp, (U32)textComp.text.length());
+			F32 maxScroll = std::max(0.0f, totalTextWidth - visibleWidth);
+			input.scrollOffset = std::clamp(input.scrollOffset, 0.0f, maxScroll);
+
+			textRect.position.x = leftPadding - input.scrollOffset;
+			caretRect.position.x = textRect.position.x + cursorPixelOffset;
+
+			if (focusedEntity == id)
+			{
+				F32 blinkRate = 0.53f;
+				bool showCaret = fmod(Time::AbsoluteTime(), blinkRate * 2.0) < blinkRate;
+				caretPanel.color.a = showCaret ? 1.0f : 0.0f;
+			}
+			else
+			{
+				caretPanel.color.a = 0.0f;
+			}
 		}
 	}
 }
@@ -281,6 +352,97 @@ void UI::ProcessScrollArea(U32 id)
 	}
 }
 
+void UI::ProcessTextInput(U32 id)
+{
+	UITextInput& input = Registry::GetComponent<UITextInput>(id);
+	UIText& text = Registry::GetComponent<UIText>(input.textEntity);
+
+	if (id == hoveredEntity)
+	{
+		cursorChanged = true;
+		Platform::SetCursorType(CursorType::IBeam);
+	}
+
+	if (Input::OnButtonDown(ButtonCode::LeftMouse))
+	{
+		Input::GetAndClearTextInputQueue();
+
+		if (id == hoveredEntity)
+		{
+			focusedEntity = id;
+			input.isFocused = true;
+
+			if (input.textEntity != U32_MAX && Registry::HasComponent<UIText>(input.textEntity))
+			{
+				glm::vec2 mousePos = GetVirtualMousePosition();
+				glm::vec2 textAbsPos = GetAbsoluteUIPosition(input.textEntity);
+				F32 localMouseX = glm::max(0.0f, mousePos.x - textAbsPos.x);
+
+				text.text = input.text;
+				input.caretIndex = CalculateCursorIndexFromMouse(Registry::GetComponent<UIText>(input.textEntity), localMouseX);
+			}
+		}
+		else if (id == focusedEntity)
+		{
+			focusedEntity = U32_MAX;
+			input.isFocused = false;
+		}
+	}
+
+	if (id == focusedEntity)
+	{
+		Vector<C> charQueue = Input::GetAndClearTextInputQueue();
+		for (C c : charQueue)
+		{
+			if (input.text.length() < input.MaxLength)
+			{
+				input.text.insert(input.text.begin() + input.caretIndex, c);
+				input.caretIndex++;
+			}
+		}
+
+		if (Input::OnButtonDown(ButtonCode::Back) || Input::OnButtonRepeat(ButtonCode::Back))
+		{
+			if (input.caretIndex > 0)
+			{
+				input.text.erase(input.text.begin() + (input.caretIndex - 1));
+				input.caretIndex--;
+			}
+		}
+
+		if (Input::OnButtonDown(ButtonCode::Delete) || Input::OnButtonRepeat(ButtonCode::Delete))
+		{
+			if (input.caretIndex < input.text.length())
+			{
+				input.text.erase(input.text.begin() + input.caretIndex);
+			}
+		}
+
+		if (Input::OnButtonDown(ButtonCode::Left) || Input::OnButtonRepeat(ButtonCode::Left))
+		{
+			if (input.caretIndex > 0) { input.caretIndex--; }
+		}
+
+		if (Input::OnButtonDown(ButtonCode::Right) || Input::OnButtonRepeat(ButtonCode::Right))
+		{
+			if (input.caretIndex < input.text.length()) { input.caretIndex++; }
+		}
+
+		if (input.text.empty())
+		{
+			text.text = input.hintText;
+			text.color = { 0.3f, 0.3f, 0.3f, 1.0f };
+		}
+		else
+		{
+			text.text = input.text;
+			text.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		}
+
+		Input::ConsumeInput();
+	}
+}
+
 void UI::ProcessResizable(U32 id)
 {
 	UIResizable& resizable = Registry::GetComponent<UIResizable>(id);
@@ -317,7 +479,7 @@ void UI::ProcessResizable(U32 id)
 		}
 		if (resizable.draggingLeft)
 		{
-			F32 limitDelta = std::min(delta.x, rect.size.x - resizable.minSize.x);
+			F32 limitDelta = glm::min(delta.x, rect.size.x - resizable.minSize.x);
 			rect.position.x += limitDelta;
 			rect.size.x -= limitDelta;
 		}
@@ -327,7 +489,7 @@ void UI::ProcessResizable(U32 id)
 		}
 		if (resizable.draggingTop)
 		{
-			F32 limitDelta = std::min(delta.y, rect.size.y - resizable.minSize.y);
+			F32 limitDelta = glm::min(delta.y, rect.size.y - resizable.minSize.y);
 			rect.position.y += limitDelta;
 			rect.size.y -= limitDelta;
 		}
@@ -377,7 +539,7 @@ void UI::ProcessWindow(U32 id)
 
 void UI::HandleCursor(const UIResizable& resizable, bool onRightEdge, bool onLeftEdge, bool onBottomEdge, bool onTopEdge)
 {
-	cursorChanged = resizable.isDragging || onRightEdge || onLeftEdge || onBottomEdge || onTopEdge;
+	cursorChanged |= resizable.isDragging || onRightEdge || onLeftEdge || onBottomEdge || onTopEdge;
 
 	if (resizable.isDragging)
 	{
@@ -463,166 +625,107 @@ void UI::HandleCursor(const UIResizable& resizable, bool onRightEdge, bool onLef
 	}
 }
 
-void UI::UpdatePanels()
+void UI::UpdateVisuals()
 {
-	auto view = Registry::View<UIPanel, UIRect>();
+	auto view = Registry::View<UIRect>();
 	if (view.Size() == 0) { return; }
 
 	Vector<U32> sortedIds;
 	sortedIds.reserve(view.Size());
 	for (U32 i = 0; i < view.Size(); ++i)
 	{
-		if (view.Matches(view.GetEntity(i))) { sortedIds.push_back(view.GetEntity(i)); }
+		if (view.Matches(view.GetEntity(i))) sortedIds.push_back(view.GetEntity(i));
 	}
 
 	std::sort(sortedIds.begin(), sortedIds.end(), [&view](U32 a, U32 b) {
-		return std::get<1>(view.Get(a)).zIndex < std::get<1>(view.Get(b)).zIndex;
+		return std::get<0>(view.Get(a)).zIndex < std::get<0>(view.Get(b)).zIndex;
 	});
 
 	U32 frame = Renderer::FrameIndex();
-	Vector<UIVertex> vertices;
-	Vector<U32> indices;
-	Vector<UIDrawCmd>& commands = panelDrawCommands[frame];
+	Vector<UIDrawCmd>& commands = drawCommands[frame];
 	commands.clear();
 
-	U32 vertexOffset = 0;
+	Vector<UIVertex> panelVertices;
+	Vector<U32> panelIndices;
+
+	Vector<TextVertex> textVertices;
+	Vector<U32> textIndices;
+
+	F32 physicalAspect = (F32)Settings::WindowWidth() / (F32)Settings::WindowHeight();
+	F32 virtualWidth = 1080.0f * physicalAspect;
 	glm::mat4 uiProjection = glm::ortho(0.0f, 1920.0f, 0.0f, 1080.0f, -1.0f, 1.0f);
 
 	UIDrawCmd currentCmd{};
 	currentCmd.scissor = { { 0, 0 }, { 1920, 1080 } };
 
-	for (U32 id : sortedIds)
-	{
-		if (!view.Matches(id)) { continue; }
+	auto ProcessBatch = [&](UIDrawType type, const Scissor& clipRect, U32 currentIndexOffset) {
+		bool scissorChanged = clipRect.offset.x != currentCmd.scissor.offset.x || clipRect.extent.x != currentCmd.scissor.extent.x || 
+			clipRect.offset.y != currentCmd.scissor.offset.y || clipRect.extent.y != currentCmd.scissor.extent.y;
+		bool typeChanged = type != currentCmd.type;
 
-		Scissor clipRect = GetAbsoluteScissor(id);
-
-		if (clipRect.extent.x == 0 || clipRect.extent.y == 0) { continue; }
-
-		bool scissorChanged = (clipRect.offset.x != currentCmd.scissor.offset.x ||
-			clipRect.offset.y != currentCmd.scissor.offset.y ||
-			clipRect.extent.x != currentCmd.scissor.extent.x ||
-			clipRect.extent.y != currentCmd.scissor.extent.y);
-
-		if (scissorChanged)
+		if (scissorChanged || typeChanged)
 		{
-			if (currentCmd.indexCount > 0)
-			{
-				commands.push_back(currentCmd);
-			}
-
+			if (currentCmd.indexCount > 0) { commands.push_back(currentCmd); }
 			currentCmd = {};
-			currentCmd.indexOffset = (U32)indices.size();
+			currentCmd.type = type;
 			currentCmd.scissor = clipRect;
+			currentCmd.indexOffset = currentIndexOffset;
 		}
-
-		auto [panel, rect] = view.Get(id);
-
-		glm::vec2 absPos = GetAbsoluteUIPosition(id);
-
-		glm::vec2 bottomLeft = uiProjection * glm::vec4(absPos, 0.0f, 1.0f);
-		glm::vec2 topRight = uiProjection * glm::vec4(absPos + rect.size, 0.0f, 1.0f);
-
-		vertices.push_back({ { bottomLeft.x, bottomLeft.y }, { 0.0f, 0.0f }, panel.color, panel.textureId });
-		vertices.push_back({ { topRight.x, bottomLeft.y }, { 1.0f, 0.0f }, panel.color, panel.textureId });
-		vertices.push_back({ { topRight.x, topRight.y }, { 1.0f, 1.0f }, panel.color, panel.textureId });
-		vertices.push_back({ { bottomLeft.x, topRight.y }, { 0.0f, 1.0f }, panel.color, panel.textureId });
-
-		indices.push_back(vertexOffset + 0);
-		indices.push_back(vertexOffset + 1);
-		indices.push_back(vertexOffset + 2);
-		indices.push_back(vertexOffset + 2);
-		indices.push_back(vertexOffset + 3);
-		indices.push_back(vertexOffset + 0);
-
-		vertexOffset += 4;
-		currentCmd.indexCount += 6;
-	}
-
-	if (currentCmd.indexCount > 0)
-	{
-		commands.push_back(currentCmd);
-	}
-
-	if (!vertices.empty())
-	{
-		U64 vertexSize = vertices.size() * sizeof(UIVertex);
-		U64 indexSize = indices.size() * sizeof(U32);
-
-		uiVertexBuffers[frame].Write(vertices.data(), vertexSize);
-		uiIndexBuffers[frame].Write(indices.data(), indexSize);
-	}
-}
-
-void UI::UpdateText()
-{
-	auto view = Registry::View<UIText, UIRect>();
-	if (view.Size() == 0) { return; }
-
-	Vector<U32> sortedIds;
-	sortedIds.reserve(view.Size());
-	for (U32 i = 0; i < view.Size(); ++i)
-	{
-		if (view.Matches(view.GetEntity(i))) { sortedIds.push_back(view.GetEntity(i)); }
-	}
-
-	std::sort(sortedIds.begin(), sortedIds.end(), [&view](U32 a, U32 b) {
-		return std::get<1>(view.Get(a)).zIndex < std::get<1>(view.Get(b)).zIndex;
-	});
-
-	Vector<TextVertex> vertices;
-	Vector<U32> indices;
-
-	U32 frame = Renderer::FrameIndex();
-	Vector<UIDrawCmd>& commands = textDrawCommands[frame];
-	commands.clear();
-
-	glm::mat4 uiProjection = glm::ortho(0.0f, 1920.0f, 0.0f, 1080.0f, -1.0f, 1.0f);
-
-	UIDrawCmd currentCmd{};
-	currentCmd.scissor = { { 0, 0 }, { 1920, 1080 } };
+	};
 
 	for (U32 id : sortedIds)
 	{
 		Scissor clipRect = GetAbsoluteScissor(id);
-
 		if (clipRect.extent.x == 0 || clipRect.extent.y == 0) { continue; }
 
-		bool scissorChanged = (clipRect.offset.x != currentCmd.scissor.offset.x ||
-			clipRect.offset.y != currentCmd.scissor.offset.y ||
-			clipRect.extent.x != currentCmd.scissor.extent.x ||
-			clipRect.extent.y != currentCmd.scissor.extent.y);
+		glm::vec2 absPos = GetAbsoluteUIPosition(id);
+		auto& rect = Registry::GetComponent<UIRect>(id);
 
-		if (scissorChanged)
+		if (Registry::HasComponent<UIPanel>(id))
 		{
-			if (currentCmd.indexCount > 0)
-			{
-				commands.push_back(currentCmd);
-			}
+			ProcessBatch(UIDrawType::Panel, clipRect, (U32)panelIndices.size());
+			auto& panel = Registry::GetComponent<UIPanel>(id);
 
-			currentCmd = {};
-			currentCmd.indexOffset = (U32)indices.size();
-			currentCmd.scissor = clipRect;
+			U32 vertexOffset = (U32)panelVertices.size();
+			glm::vec2 bottomLeft = uiProjection * glm::vec4(absPos, 0.0f, 1.0f);
+			glm::vec2 topRight = uiProjection * glm::vec4(absPos + rect.size, 0.0f, 1.0f);
+
+			panelVertices.push_back({ { bottomLeft.x, bottomLeft.y }, { 0.0f, 0.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { topRight.x, bottomLeft.y }, { 1.0f, 0.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { topRight.x, topRight.y }, { 1.0f, 1.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { bottomLeft.x, topRight.y }, { 0.0f, 1.0f }, panel.color, panel.textureId });
+
+			panelIndices.push_back(vertexOffset + 0);
+			panelIndices.push_back(vertexOffset + 1);
+			panelIndices.push_back(vertexOffset + 2);
+			panelIndices.push_back(vertexOffset + 2);
+			panelIndices.push_back(vertexOffset + 3);
+			panelIndices.push_back(vertexOffset + 0);
+
+			currentCmd.indexCount += 6;
 		}
 
-		auto [text, rect] = view.Get(id);
-		glm::vec2 absPos = GetAbsoluteUIPosition(id);
+		if (Registry::HasComponent<UIText>(id))
+		{
+			ProcessBatch(UIDrawType::Text, clipRect, (U32)textIndices.size());
+			auto& text = Registry::GetComponent<UIText>(id);
 
-		GenerateTextData(absPos, uiProjection, text, vertices, indices, currentCmd);
+			GenerateTextData(absPos, uiProjection, text, textVertices, textIndices, currentCmd);
+		}
 	}
 
-	if (currentCmd.indexCount > 0)
+	if (currentCmd.indexCount > 0) { commands.push_back(currentCmd); }
+
+	if (!panelVertices.empty())
 	{
-		commands.push_back(currentCmd);
+		uiVertexBuffers[frame].Write(panelVertices.data(), panelVertices.size() * sizeof(UIVertex));
+		uiIndexBuffers[frame].Write(panelIndices.data(), panelIndices.size() * sizeof(U32));
 	}
 
-	if (!vertices.empty())
+	if (!textVertices.empty())
 	{
-		U64 vertexSize = vertices.size() * sizeof(TextVertex);
-		U64 indexSize = indices.size() * sizeof(U32);
-
-		textVertexBuffers[frame].Write(vertices.data(), vertexSize);
-		textIndexBuffers[frame].Write(indices.data(), indexSize);
+		textVertexBuffers[frame].Write(textVertices.data(), textVertices.size() * sizeof(TextVertex));
+		textIndexBuffers[frame].Write(textIndices.data(), textIndices.size() * sizeof(U32));
 	}
 }
 
@@ -727,7 +830,7 @@ F32 UI::GetTextWidth(const UIText& textComp)
 	{
 		if (c == '\n')
 		{
-			maxLineWidth = std::max(maxLineWidth, currentLineWidth);
+			maxLineWidth = glm::max(maxLineWidth, currentLineWidth);
 			currentLineWidth = 0.0f;
 			prev = 255;
 			continue;
@@ -740,7 +843,57 @@ F32 UI::GetTextWidth(const UIText& textComp)
 		prev = c;
 	}
 
-	return std::max(maxLineWidth, currentLineWidth);
+	return glm::max(maxLineWidth, currentLineWidth);
+}
+
+F32 UI::GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex)
+{
+	if (textComp.text.empty() || !textComp.font || stopIndex == 0) { return 0.0f; }
+
+	F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	F32 scale = textComp.fontSize / (F32)textComp.font->GlyphSize();
+	F32 width = 0.0f;
+	U8 prev = 255;
+
+	U32 limit = glm::min(stopIndex, (U32)textComp.text.length());
+
+	for (U32 i = 0; i < limit; ++i)
+	{
+		C c = textComp.text[i];
+		U8 index = c - 32;
+		F32 kern = (prev != 255 && c != ' ') ? textComp.font->glyphs[prev - 32].kerning[c - 32] : 0.0f;
+
+		width += (textComp.font->GetGlyph(index).advance + kern) * scale * aspectCorrectionX;
+		prev = c;
+	}
+
+	return width;
+}
+
+U32 UI::CalculateCursorIndexFromMouse(const UIText& textComp, F32 localMouseX)
+{
+	if (textComp.text.empty() || !textComp.font) { return 0; }
+
+	F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	F32 scale = textComp.fontSize / (F32)textComp.font->GlyphSize();
+	F32 currentX = 0.0f;
+	U8 prev = 255;
+
+	for (U32 i = 0; i < textComp.text.length(); ++i)
+	{
+		C c = textComp.text[i];
+		U8 index = c - 32;
+		F32 kern = (prev != 255 && c != ' ') ? textComp.font->glyphs[prev - 32].kerning[c - 32] : 0.0f;
+
+		F32 charWidth = (textComp.font->GetGlyph(index).advance + kern) * scale * aspectCorrectionX;
+
+		if (localMouseX <= currentX + (charWidth * 0.5f)) { return i; }
+
+		currentX += charWidth;
+		prev = c;
+	}
+
+	return (U32)textComp.text.length();
 }
 
 void UI::BringWindowToFront(U32 windowId)
@@ -769,6 +922,8 @@ void UI::BringWindowToFront(U32 windowId)
 void UI::Render(VkCommandBuffer cmd)
 {
 	U32 frame = Renderer::FrameIndex();
+	const auto& commands = drawCommands[frame];
+	if (commands.empty()) { return; }
 
 	F32 scaleX = (F32)Settings::WindowWidth() / 1920.0f;
 	F32 scaleY = (F32)Settings::WindowHeight() / 1080.0f;
@@ -782,52 +937,48 @@ void UI::Render(VkCommandBuffer cmd)
 		I32 right = (I32)((virtualScissor.offset.x + virtualScissor.extent.x) * scaleX);
 		I32 bottom = (I32)((virtualScissor.offset.y + virtualScissor.extent.y) * scaleY);
 
-		physicalScissor.offset.x = std::max(0, physicalScissor.offset.x);
-		physicalScissor.offset.y = std::max(0, physicalScissor.offset.y);
-		right = std::min((I32)Settings::WindowWidth(), right);
-		bottom = std::min((I32)Settings::WindowHeight(), bottom);
+		physicalScissor.offset.x = glm::max(0, physicalScissor.offset.x);
+		physicalScissor.offset.y = glm::max(0, physicalScissor.offset.y);
+		right = glm::min((I32)Settings::WindowWidth(), right);
+		bottom = glm::min((I32)Settings::WindowHeight(), bottom);
 
-		physicalScissor.extent.width = std::max(0, right - physicalScissor.offset.x);
-		physicalScissor.extent.height = std::max(0, bottom - physicalScissor.offset.y);
+		physicalScissor.extent.width = glm::max(0, right - physicalScissor.offset.x);
+		physicalScissor.extent.height = glm::max(0, bottom - physicalScissor.offset.y);
 
 		vkCmdSetScissor(cmd, 0, 1, &physicalScissor);
 	};
 
-	const auto& panelCmds = panelDrawCommands[frame];
-	if (!panelCmds.empty())
+	UIDrawType currentPipeline = UIDrawType::None;
+
+	for (const UIDrawCmd& drawCmd : commands)
 	{
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, uiShader.Pipeline());
-		VkDescriptorSet sets[] = { Renderer::GlobalBindlessSet() };
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, uiShader.PipelineLayout(), 0, CountOf32(sets), sets, 0, nullptr);
-
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(cmd, 0, 1, &uiVertexBuffers[frame].vkBuffer, offsets);
-		vkCmdBindIndexBuffer(cmd, uiIndexBuffers[frame].vkBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		for (const UIDrawCmd& drawCmd : panelCmds)
+		if (drawCmd.type != currentPipeline)
 		{
-			ApplyScissor(drawCmd.scissor);
-			vkCmdDrawIndexed(cmd, drawCmd.indexCount, 1, drawCmd.indexOffset, 0, 0);
+			if (drawCmd.type == UIDrawType::Panel)
+			{
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, uiShader.Pipeline());
+				VkDescriptorSet sets[] = { Renderer::GlobalBindlessSet() };
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, uiShader.PipelineLayout(), 0, 1, sets, 0, nullptr);
+
+				VkDeviceSize offsets[] = { 0 };
+				vkCmdBindVertexBuffers(cmd, 0, 1, &uiVertexBuffers[frame].vkBuffer, offsets);
+				vkCmdBindIndexBuffer(cmd, uiIndexBuffers[frame].vkBuffer, 0, VK_INDEX_TYPE_UINT32);
+			}
+			else if (drawCmd.type == UIDrawType::Text)
+			{
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, textShader.Pipeline());
+				VkDescriptorSet sets[] = { Renderer::GlobalBindlessSet() };
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, textShader.PipelineLayout(), 0, 1, sets, 0, nullptr);
+
+				VkDeviceSize offsets[] = { 0 };
+				vkCmdBindVertexBuffers(cmd, 0, 1, &textVertexBuffers[frame].vkBuffer, offsets);
+				vkCmdBindIndexBuffer(cmd, textIndexBuffers[frame].vkBuffer, 0, VK_INDEX_TYPE_UINT32);
+			}
+			currentPipeline = drawCmd.type;
 		}
-	}
 
-	const auto& textCmds = textDrawCommands[frame];
-	if (!textCmds.empty())
-	{
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, textShader.Pipeline());
-
-		VkDescriptorSet sets[] = { Renderer::GlobalBindlessSet() };
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, textShader.PipelineLayout(), 0, CountOf32(sets), sets, 0, nullptr);
-
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(cmd, 0, 1, &textVertexBuffers[frame].vkBuffer, offsets);
-		vkCmdBindIndexBuffer(cmd, textIndexBuffers[frame].vkBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		for (const UIDrawCmd& drawCmd : textCmds)
-		{
-			ApplyScissor(drawCmd.scissor);
-			vkCmdDrawIndexed(cmd, drawCmd.indexCount, 1, drawCmd.indexOffset, 0, 0);
-		}
+		ApplyScissor(drawCmd.scissor);
+		vkCmdDrawIndexed(cmd, drawCmd.indexCount, 1, drawCmd.indexOffset, 0, 0);
 	}
 }
 
@@ -881,10 +1032,10 @@ Scissor UI::GetAbsoluteScissor(U32 entityId)
 			glm::vec2 pos = UI::GetAbsoluteUIPosition(currentId);
 			glm::vec2 size = Registry::GetComponent<UIRect>(currentId).size;
 
-			minX = std::max(minX, pos.x);
-			minY = std::max(minY, pos.y);
-			maxX = std::min(maxX, pos.x + size.x);
-			maxY = std::min(maxY, pos.y + size.y);
+			minX = glm::max(minX, pos.x);
+			minY = glm::max(minY, pos.y);
+			maxX = glm::min(maxX, pos.x + size.x);
+			maxY = glm::min(maxY, pos.y + size.y);
 		}
 
 		if (Registry::GetSet<UIHierarchy>().Has(currentId))
@@ -985,6 +1136,21 @@ Entity UI::CreateText(const String& text, std::shared_ptr<Font> font, glm::vec2 
 	return entity;
 }
 
+Entity UI::CreateTextInput(std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
+{
+	Entity root = CreatePanel(localPos, size, { 0.1f, 0.1f, 0.1f, 1.0f }, anchor, parent);
+	root.AddComponent<UIClipMask>();
+	UITextInput& inputComp = root.AddComponent<UITextInput>();
+
+	Entity textEntity = CreateText(inputComp.hintText, font, { 6.0f, size.y * 0.1f }, size.y * 0.666f, { 0.3f, 0.3f, 0.3f, 1.0f }, { 0.0f, 0.0f }, root);
+	inputComp.textEntity = textEntity.Id();
+
+	Entity caret = CreatePanel({ 6.0f, 4.0f }, { 2.0f, size.y - 8.0f }, { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }, root);
+	inputComp.caretEntity = caret.Id();
+
+	return root;
+}
+
 Entity UI::CreateButton(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
 {
 	Entity buttonEntity = CreatePanel(localPos, size, { 0.3f, 0.3f, 0.3f, 1.0f }, anchor, parent);
@@ -1032,9 +1198,9 @@ ScrollAreaEntities UI::CreateScrollArea(glm::vec2 localPos, glm::vec2 size, glm:
 	Entity viewport = CreateContainer(localPos, size, anchor, parent);
 	viewport.AddComponent<UIClipMask>();
 	UIScrollArea& scroll = viewport.AddComponent<UIScrollArea>();
+	scroll.scrollOffset.y = scroll.padding;
 
 	Entity content = CreateContainer({ 0.0f, 0.0f }, { size.x, 0.0f }, { 0.0f, 0.0f }, viewport);
-
 	scroll.contentEntity = content.Id();
 
 	return { viewport, content };

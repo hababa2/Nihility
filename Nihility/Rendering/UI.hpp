@@ -84,7 +84,7 @@ struct NH_API UIScrollArea
 	U32 contentEntity = U32_MAX;
 	glm::vec2 scrollOffset{ 0.0f, 0.0f };
 	F32 scrollSpeed = 30.0f;
-	F32 padding = 10.0f; //TODO: 
+	F32 padding = 10.0f;
 };
 
 struct NH_API ScrollAreaEntities
@@ -111,8 +111,14 @@ struct NH_API UIText
 
 struct NH_API UITextInput
 {
-	String currentText;
-	U32 cursorPosition = 0;
+	static constexpr U32 MaxLength = 256;
+
+	String text;
+	String hintText = "Enter Text";
+	U32 textEntity = U32_MAX;
+	U32 caretEntity = U32_MAX;
+	U32 caretIndex = 0;
+	F32 scrollOffset = 0.0f;
 	bool isFocused = false;
 
 	enum class InputType { Text, Integer, Float };
@@ -127,6 +133,7 @@ struct Scissor
 
 struct UIDrawCmd
 {
+	UIDrawType type = UIDrawType::None;
 	U32 indexCount = 0;
 	U32 indexOffset = 0;
 	Scissor scissor;
@@ -157,6 +164,7 @@ public:
 	static Entity CreateContainer(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
 	static Entity CreatePanel(glm::vec2 localPos, glm::vec2 size, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
 	static Entity CreateText(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
+	static Entity CreateTextInput(std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {}); //TODO: hint text
 	static Entity CreateButton(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
 	static Entity CreateWindow(const String& title, std::shared_ptr<Font> font, glm::vec2 pos, glm::vec2 size, bool resizable = false);
 	static ScrollAreaEntities CreateScrollArea(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
@@ -174,17 +182,19 @@ private:
 
 	static void UpdateInput();
 	static void UpdateLayouts();
-	static void UpdatePanels();
-	static void UpdateText();
+	static void UpdateVisuals();
 
 	static void ProcessInteractable(U32 id);
 	static void ProcessScrollArea(U32 id);
+	static void ProcessTextInput(U32 id);
 	static void ProcessResizable(U32 id);
 	static void ProcessWindow(U32 id);
 
 	static void HandleCursor(const UIResizable& resizable, bool onRightEdge, bool onLeftEdge, bool onBottomEdge, bool onTopEdge);
 	static void GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection, const UIText& textComp, Vector<TextVertex>& outVertices, Vector<U32>& outIndices, UIDrawCmd& command);
 	static F32 GetTextWidth(const UIText& textComp);
+	static F32 GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex);
+	static U32 CalculateCursorIndexFromMouse(const UIText& textComp, F32 localMouseX);
 	static void BringWindowToFront(U32 windowId);
 
 	static void Render(VkCommandBuffer_T* cmd);
@@ -200,13 +210,14 @@ private:
 	static Shader uiShader;
 	static Buffer uiVertexBuffers[MaxFramesInFlight];
 	static Buffer uiIndexBuffers[MaxFramesInFlight];
-	static Vector<UIDrawCmd> panelDrawCommands[MaxFramesInFlight];
 
 	static Shader textShader;
 	static Buffer textVertexBuffers[MaxFramesInFlight];
 	static Buffer textIndexBuffers[MaxFramesInFlight];
-	static Vector<UIDrawCmd> textDrawCommands[MaxFramesInFlight];
 
+	static Vector<UIDrawCmd> drawCommands[MaxFramesInFlight];
+
+	static U32 focusedEntity;
 	static U32 hoveredEntity;
 	static U32 activeEntity;
 	static bool cursorChanged;

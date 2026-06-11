@@ -305,6 +305,8 @@ void Platform::SetCursorType(CursorType type)
 	{
 	case CursorType::Arrow: { currentCursor = arrow; } break;
 	case CursorType::Hand: { currentCursor = hand; } break;
+	case CursorType::IBeam: { currentCursor = IBeam; } break;
+	case CursorType::Crosshair: { currentCursor = crosshair; } break;
 	case CursorType::ResizeNS: { currentCursor = sizeNS; } break;
 	case CursorType::ResizeEW: { currentCursor = sizeWE; } break;
 	case CursorType::ResizeNESW: { currentCursor = sizeNESW; } break;
@@ -464,6 +466,14 @@ I64 __stdcall Platform::WindowsMessageProc(HWND__* hWnd, U32 msg, U64 wParam, I6
 
 		DragFinish(dropInfo);
 	} return 0;
+	case WM_CHAR:
+	{
+		if (wParam >= 32 && wParam <= 126)
+		{
+			Input::QueueChar(static_cast<C>(wParam));
+		}
+		return 0;
+	}
 	case WM_INPUT: {
 		Input::UpdateRawInput(lParam);
 	} return 0;

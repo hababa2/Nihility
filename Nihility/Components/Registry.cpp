@@ -169,7 +169,7 @@ bool Registry::Initialize()
 	transforms.reserve(10000);
 	freeEntities.reserve(10000);
 
-	RegisterComponentUpdate("PlayerController", UpdatePlayer);
+	RegisterComponentUpdate("PlayerController", UpdatePlayer, { "UI" });
 	RegisterComponentUpdate("Camera", UpdateCameras, { "Physics", "PlayerController" });
 	RegisterComponentUpdate("AudioEmitter", UpdateAudioEmitters, { "Physics", "PlayerController" });
 	RegisterComponentUpdate("Sprite", UpdateSprites, { "Physics", "PlayerController" });

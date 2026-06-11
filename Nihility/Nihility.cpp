@@ -65,17 +65,17 @@ void InitGame()
 
 	Entity window = UI::CreateWindow("Test Window", font, { 50.0f, 50.0f }, { 600.0f, 600.0f }, true);
 
-	Entity windowBody = UI::CreateWindow("Asset Browser", font, { 100, 100 }, { 410, 500 });
+	Entity input = UI::CreateTextInput(font, { 0.0f, 0.0f }, { 500.0f, 40.0f }, { 0.0f, 0.0f }, window);
 
-	ScrollAreaEntities scrollArea = UI::CreateScrollArea({ 0, 0 }, { 400, 500 }, { 0, 0 }, windowBody);
+	Entity windowBody = UI::CreateWindow("Asset Browser", font, { 700.0f, 100.0f }, { 410.0f, 500.0f });
+
+	ScrollAreaEntities scrollArea = UI::CreateScrollArea({ 0.0f, 0.0f }, { 400.0f, 500.0f }, { 0.0f, 0.0f }, windowBody);
 
 	for (int i = 0; i < 50; ++i)
 	{
-		glm::vec2 btnPos = { 10.0f, (F32)i * 45.0f + 10.0f };
-		UI::CreateButton("Asset", font, btnPos, { 380, 40 }, { 0,0 }, scrollArea.content);
+		glm::vec2 btnPos = { 10.0f, (F32)i * 45.0f };
+		UI::CreateButton("Asset", font, btnPos, { 380.0f, 40.0f }, { 0.0f, 0.0f }, scrollArea.content);
 	}
-
-	//UI::CreateText("abcdefghijklmnopqrstuvwxyz\nABCDEFGHIJKLMNOPQRSTUVWXYZ\n1234567890\n`~!@#$%^&*()_+-=[]{}\\|;:'\",<>./?\n@@@\n@@@\n@@@", font, { 0.1f, 0.1f }, 75.0f, { 1.0f, 0.8f, 0.0f, 1.0f });
 }
 
 void ShutdownGame()

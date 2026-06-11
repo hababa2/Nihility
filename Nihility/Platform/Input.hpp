@@ -478,6 +478,7 @@ class NH_API Input
 		bool pressed;
 		bool doubleClicked;
 		bool held;
+		bool repeated;
 		F64 lastPressed;
 	};
 
@@ -524,6 +525,7 @@ public:
 	static bool OnButtonChange(ButtonCode code);
 	static bool OnButtonDoubleClick(ButtonCode code);
 	static bool OnButtonHold(ButtonCode code);
+	static bool OnButtonRepeat(ButtonCode code);
 	static bool OnButtonRelease(ButtonCode code);
 	static glm::vec2 MousePosition();
 	static glm::vec2 PreviousMousePos();
@@ -531,6 +533,9 @@ public:
 	static void ConsumeInput();
 	static I16 MouseWheelDelta();
 	static I16 MouseHWheelDelta();
+
+	static void QueueChar(C c);
+	static Vector<C> GetAndClearTextInputQueue();
 
 private:
 	static bool Initialize();
@@ -583,6 +588,7 @@ private:
 	static F32 deltaRawMousePosY;
 
 	static bool inputConsumed;
+	static Vector<C> textInputQueue;
 
 	static HWND__* hwnd;
 

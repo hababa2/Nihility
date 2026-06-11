@@ -42,6 +42,7 @@ F32 Input::deltaRawMousePosX;
 F32 Input::deltaRawMousePosY;
 
 bool Input::inputConsumed;
+Vector<C> Input::textInputQueue;
 
 HWND Input::hwnd;
 
@@ -85,7 +86,7 @@ void Input::RegisterDevices()
 
 	deviceList[3].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	deviceList[3].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-	deviceList[3].dwFlags = RIDEV_DEVNOTIFY | RIDEV_NOLEGACY | RIDEV_APPKEYS;
+	deviceList[3].dwFlags = RIDEV_DEVNOTIFY; //RIDEV_NOLEGACY | RIDEV_APPKEYS
 	deviceList[3].hwndTarget = nullptr;
 
 	deviceList[4].usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -98,7 +99,12 @@ void Input::RegisterDevices()
 	deviceList[5].dwFlags = RIDEV_DEVNOTIFY;
 	deviceList[5].hwndTarget = nullptr;
 
-	RegisterRawInputDevices(deviceList, CountOf32(deviceList), sizeof(RAWINPUTDEVICE));
+	if (!RegisterRawInputDevices(deviceList, CountOf32(deviceList), sizeof(RAWINPUTDEVICE)))
+	{
+		DWORD error = GetLastError();
+
+		BreakPoint;
+	}
 }
 
 void Input::Shutdown()
@@ -118,6 +124,11 @@ void Input::Update()
 {
 	memcpy(&previousStates, &currentStates, sizeof(InputState));
 	memcpy(&currentStates, &osStates, sizeof(InputState));
+
+	for (U32 i = 0; i < (U32)ButtonCode::COUNT; ++i)
+	{
+		osStates.buttonStates[i].repeated = false;
+	}
 
 	POINT p;
 	GetCursorPos(&p);
@@ -683,6 +694,8 @@ void Input::UpdateButtonState(ButtonCode code, bool value)
 
 	if (value)
 	{
+		state.repeated = true;
+
 		if (state.pressed)
 		{
 			if (!state.held && currentTimestamp - state.lastPressed > holdThreshold)
@@ -984,6 +997,8 @@ bool Input::OnButtonDoubleClick(ButtonCode code) { return !inputConsumed && curr
 
 bool Input::OnButtonHold(ButtonCode code) { return !inputConsumed && currentStates.buttonStates[*code].held && !previousStates.buttonStates[*code].held; }
 
+bool Input::OnButtonRepeat(ButtonCode code) { return !inputConsumed && currentStates.buttonStates[*code].repeated; }
+
 bool Input::OnButtonRelease(ButtonCode code) { return !inputConsumed && !currentStates.buttonStates[*code].held && previousStates.buttonStates[*code].held; }
 
 glm::vec2 Input::MousePosition() { return { mousePosX, mousePosY }; }
@@ -1006,4 +1021,16 @@ F32 Input::GetAxis(AxisCode code)
 const CircularQueue<ButtonEvent>& Input::GetInputEvents()
 {
 	return eventQueue;
+}
+
+void Input::QueueChar(C c)
+{
+	textInputQueue.push_back(c);
+}
+
+Vector<C> Input::GetAndClearTextInputQueue()
+{
+	Vector<C> copy = textInputQueue;
+	textInputQueue.clear();
+	return copy;
 }
