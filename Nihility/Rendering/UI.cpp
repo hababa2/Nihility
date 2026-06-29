@@ -26,6 +26,8 @@ Buffer UI::textIndexBuffers[MaxFramesInFlight];
 
 Vector<UIDrawCmd> UI::drawCommands[MaxFramesInFlight];
 
+std::shared_ptr<Font> UI::font;
+
 U32 UI::focusedEntity = U32_MAX;
 U32 UI::hoveredEntity = U32_MAX;
 U32 UI::activeEntity = U32_MAX;
@@ -34,6 +36,8 @@ bool UI::cursorChanged;
 bool UI::Initialize()
 {
 	Logger::Trace("Initializing UI System...");
+
+	font = Resources::Load<Font>(L"arial");
 
 	uiShader.Create("ui.slang");
 	textShader.Create("text.slang");
@@ -181,8 +185,48 @@ void UI::UpdateInput()
 
 void UI::UpdateLayouts()
 {
-	auto winView = Registry::View<UIWindow, UIRect>();
+	auto GetParentSize = [](U32 id) -> glm::vec2 {
+		if (Registry::GetSet<UIHierarchy>().Has(id))
+		{
+			Entity parent = Registry::GetComponent<UIHierarchy>(id).parent;
+			if (parent.Id() != U32_MAX && Registry::HasComponent<UIRect>(parent.Id()))
+			{
+				return Registry::GetComponent<UIRect>(parent.Id()).size;
+			}
+		}
 
+		return { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+	};
+
+	auto propView = Registry::View<UIProportionalSize, UIRect>();
+	for (U32 i = 0; i < propView.Size(); ++i)
+	{
+		U32 id = propView.GetEntity(i);
+		if (!propView.Matches(id)) continue;
+
+		auto& prop = Registry::GetComponent<UIProportionalSize>(id);
+		auto& rect = Registry::GetComponent<UIRect>(id);
+
+		glm::vec2 parentSize = GetParentSize(id);
+		rect.size = parentSize * prop.proportions;
+	}
+
+	auto fillView = Registry::View<UIFillParent, UIRect>();
+	for (U32 i = 0; i < fillView.Size(); ++i)
+	{
+		U32 id = fillView.GetEntity(i);
+		if (!fillView.Matches(id)) continue;
+
+		auto& fill = Registry::GetComponent<UIFillParent>(id);
+		auto& rect = Registry::GetComponent<UIRect>(id);
+
+		glm::vec2 parentSize = GetParentSize(id);
+
+		rect.size.x = glm::max(0.0f, parentSize.x - (fill.padding * 2.0f));
+		rect.size.y = glm::max(0.0f, parentSize.y - (fill.padding * 2.0f));
+	}
+
+	auto winView = Registry::View<UIWindow, UIRect>();
 	for (U32 i = 0; i < winView.Size(); ++i)
 	{
 		U32 id = winView.GetEntity(i);
@@ -496,6 +540,24 @@ void UI::ProcessResizable(U32 id)
 
 		rect.size = glm::clamp(rect.size, resizable.minSize, resizable.maxSize);
 
+		if (Registry::HasComponent<UIProportionalSize>(id))
+		{
+			UIProportionalSize& prop = Registry::GetComponent<UIProportionalSize>(id);
+
+			glm::vec2 parentSize = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+
+			if (Registry::GetSet<UIHierarchy>().Has(id))
+			{
+				Entity parent = Registry::GetComponent<UIHierarchy>(id).parent;
+				if (parent.Id() != U32_MAX && Registry::HasComponent<UIRect>(parent.Id()))
+				{
+					parentSize = Registry::GetComponent<UIRect>(parent.Id()).size;
+				}
+			}
+
+			prop.proportions = rect.size / parentSize;
+		}
+
 		if (Input::OnButtonUp(ButtonCode::LeftMouse))
 		{
 			resizable.isDragging = false;
@@ -653,7 +715,7 @@ void UI::UpdateVisuals()
 
 	F32 physicalAspect = (F32)Settings::WindowWidth() / (F32)Settings::WindowHeight();
 	F32 virtualWidth = 1080.0f * physicalAspect;
-	glm::mat4 uiProjection = glm::ortho(0.0f, 1920.0f, 0.0f, 1080.0f, -1.0f, 1.0f);
+	glm::mat4 uiProjection = glm::ortho(0.0f, (F32)Settings::WindowWidth(), 0.0f, (F32)Settings::WindowHeight(), -1.0f, 1.0f);
 
 	UIDrawCmd currentCmd{};
 	currentCmd.scissor = { { 0, 0 }, { 1920, 1080 } };
@@ -687,13 +749,17 @@ void UI::UpdateVisuals()
 			auto& panel = Registry::GetComponent<UIPanel>(id);
 
 			U32 vertexOffset = (U32)panelVertices.size();
-			glm::vec2 bottomLeft = uiProjection * glm::vec4(absPos, 0.0f, 1.0f);
-			glm::vec2 topRight = uiProjection * glm::vec4(absPos + rect.size, 0.0f, 1.0f);
 
-			panelVertices.push_back({ { bottomLeft.x, bottomLeft.y }, { 0.0f, 0.0f }, panel.color, panel.textureId });
-			panelVertices.push_back({ { topRight.x, bottomLeft.y }, { 1.0f, 0.0f }, panel.color, panel.textureId });
-			panelVertices.push_back({ { topRight.x, topRight.y }, { 1.0f, 1.0f }, panel.color, panel.textureId });
-			panelVertices.push_back({ { bottomLeft.x, topRight.y }, { 0.0f, 1.0f }, panel.color, panel.textureId });
+			glm::vec2 correctedSize = { rect.size.x, rect.size.y };
+			glm::vec2 correctedPos = { absPos.x, absPos.y };
+
+			glm::vec2 bl = uiProjection * glm::vec4(absPos, 0.0f, 1.0f);
+			glm::vec2 tr = uiProjection * glm::vec4(absPos + rect.size, 0.0f, 1.0f);
+
+			panelVertices.push_back({ { bl.x, bl.y }, { 0.0f, 0.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { tr.x, bl.y }, { 1.0f, 0.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { tr.x, tr.y }, { 1.0f, 1.0f }, panel.color, panel.textureId });
+			panelVertices.push_back({ { bl.x, tr.y }, { 0.0f, 1.0f }, panel.color, panel.textureId });
 
 			panelIndices.push_back(vertexOffset + 0);
 			panelIndices.push_back(vertexOffset + 1);
@@ -735,23 +801,23 @@ void UI::GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection
 
 	U32 vertexOffset = (U32)outVertices.size();
 
-	F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	F32 scale = textComp.fontSize / (F32)textComp.font->GlyphSize();
+
+	//F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
 	F32 textWidth = GetTextWidth(textComp);
 	F32 startX = absPos.x;
 
 	if (textComp.alignment == TextAlignment::Center)
 	{
-		startX -= (textWidth * aspectCorrectionX) * 0.5f;
+		startX -= (textWidth) * 0.5f;
 	}
 	else if (textComp.alignment == TextAlignment::Right)
 	{
-		startX -= (textWidth * aspectCorrectionX);
+		startX -= (textWidth);
 	}
 
 	F32 cursorX = startX;
 	F32 cursorY = absPos.y;
-
-	F32 scale = textComp.fontSize / (F32)textComp.font->GlyphSize();
 
 	glm::vec2 textPosition = glm::vec2{ (F32)textComp.font->GlyphSize(), (F32)textComp.font->GlyphSize() } / glm::vec2{ (F32)textComp.font->GetTexture()->Width(), (F32)textComp.font->GetTexture()->Height() };
 	glm::vec2 textPadding = glm::vec2{ 1.0f } / glm::vec2{ (F32)textComp.font->GetTexture()->Width(), (F32)textComp.font->GetTexture()->Height() };
@@ -782,8 +848,8 @@ void UI::GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection
 				kern = textComp.font->glyphs[prev - 32].kerning[c - 32];
 			}
 
-			F32 left = cursorX - (glyph.x * scale * aspectCorrectionX);
-			F32 right = cursorX + (textComp.fontSize * aspectCorrectionX) - (glyph.x * scale * aspectCorrectionX);
+			F32 left = cursorX - (glyph.x * scale);
+			F32 right = cursorX + (textComp.fontSize) - (glyph.x * scale);
 			F32 bottom = cursorY + textComp.fontSize + glyph.y * scale;
 			F32 top = cursorY + glyph.y * scale;
 
@@ -811,7 +877,7 @@ void UI::GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection
 			command.indexCount += 6;
 		}
 
-		cursorX += (glyph.advance + kern) * scale * aspectCorrectionX;
+		cursorX += (glyph.advance + kern) * scale;
 
 		prev = c;
 	}
@@ -925,22 +991,14 @@ void UI::Render(VkCommandBuffer cmd)
 	const auto& commands = drawCommands[frame];
 	if (commands.empty()) { return; }
 
-	F32 scaleX = (F32)Settings::WindowWidth() / 1920.0f;
-	F32 scaleY = (F32)Settings::WindowHeight() / 1080.0f;
-
 	auto ApplyScissor = [&](const Scissor& virtualScissor) {
 		VkRect2D physicalScissor{};
 
-		physicalScissor.offset.x = (I32)(virtualScissor.offset.x * scaleX);
-		physicalScissor.offset.y = (I32)(virtualScissor.offset.y * scaleY);
+		physicalScissor.offset.x = glm::max(0, (I32)virtualScissor.offset.x);
+		physicalScissor.offset.y = glm::max(0, (I32)virtualScissor.offset.y);
 
-		I32 right = (I32)((virtualScissor.offset.x + virtualScissor.extent.x) * scaleX);
-		I32 bottom = (I32)((virtualScissor.offset.y + virtualScissor.extent.y) * scaleY);
-
-		physicalScissor.offset.x = glm::max(0, physicalScissor.offset.x);
-		physicalScissor.offset.y = glm::max(0, physicalScissor.offset.y);
-		right = glm::min((I32)Settings::WindowWidth(), right);
-		bottom = glm::min((I32)Settings::WindowHeight(), bottom);
+		I32 right = glm::min((I32)Settings::WindowWidth(), (I32)(virtualScissor.offset.x + virtualScissor.extent.x));
+		I32 bottom = glm::min((I32)Settings::WindowHeight(), (I32)(virtualScissor.offset.y + virtualScissor.extent.y));
 
 		physicalScissor.extent.width = glm::max(0, right - physicalScissor.offset.x);
 		physicalScissor.extent.height = glm::max(0, bottom - physicalScissor.offset.y);
@@ -984,33 +1042,34 @@ void UI::Render(VkCommandBuffer cmd)
 
 glm::vec2 UI::GetAbsoluteUIPosition(U32 entityId)
 {
-	UIRect& originalRect = Registry::GetComponent<UIRect>(entityId);
-	glm::vec2 absPos = originalRect.position;
+	UIRect& currentRect = Registry::GetComponent<UIRect>(entityId);
 
-	U32 currentId = entityId;
-	while (Registry::GetSet<UIHierarchy>().Has(currentId))
+	bool isRoot = true;
+	Entity parent = {};
+
+	if (Registry::GetSet<UIHierarchy>().Has(entityId))
 	{
-		Entity parent = Registry::GetComponent<UIHierarchy>(currentId).parent;
-		if (parent.Id() == U32_MAX) { break; }
-
-		UIRect& parentRect = Registry::GetComponent<UIRect>(parent.Id());
-		UIRect& currentRect = Registry::GetComponent<UIRect>(currentId);
-
-		glm::vec2 anchoredOffset = parentRect.size * currentRect.anchor;
-
-		absPos += parentRect.position + anchoredOffset;
-
-		currentId = parent.Id();
+		parent = Registry::GetComponent<UIHierarchy>(entityId).parent;
+		if (parent.Id() != U32_MAX)
+		{
+			isRoot = false;
+		}
 	}
 
-	UIRect& rootRect = Registry::GetComponent<UIRect>(currentId);
-	if (rootRect.anchor.x != 0.0f || rootRect.anchor.y != 0.0f)
+	if (isRoot)
 	{
-		glm::vec2 virtualScreenSize = { 1920.0f, 1080.0f };
-		absPos += virtualScreenSize * rootRect.anchor;
+		glm::vec2 windowSize = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+		glm::vec2 anchorPixelOffset = windowSize * currentRect.anchor;
+
+		return anchorPixelOffset + currentRect.position;
 	}
 
-	return absPos;
+	glm::vec2 parentAbsPos = GetAbsoluteUIPosition(parent.Id());
+	UIRect& parentRect = Registry::GetComponent<UIRect>(parent.Id());
+
+	glm::vec2 anchorPixelOffset = parentRect.size * currentRect.anchor;
+
+	return parentAbsPos + anchorPixelOffset + currentRect.position;
 }
 
 Scissor UI::GetAbsoluteScissor(U32 entityId)
@@ -1021,8 +1080,8 @@ Scissor UI::GetAbsoluteScissor(U32 entityId)
 
 	F32 minX = 0.0f;
 	F32 minY = 0.0f;
-	F32 maxX = 1920.0f;
-	F32 maxY = 1080.0f;
+	F32 maxX = (F32)Settings::WindowWidth();
+	F32 maxY = (F32)Settings::WindowHeight();
 
 	U32 currentId = entityId;
 	while (currentId != U32_MAX)
@@ -1058,22 +1117,12 @@ Scissor UI::GetAbsoluteScissor(U32 entityId)
 
 glm::vec2 UI::GetVirtualMousePosition()
 {
-	glm::vec2 rawMouse = Input::MousePosition();
-
-	F32 scaleX = 1920.0f / (F32)Settings::WindowWidth();
-	F32 scaleY = 1080.0f / (F32)Settings::WindowHeight();
-
-	return { rawMouse.x * scaleX, rawMouse.y * scaleY };
+	return Input::MousePosition();
 }
 
 glm::vec2 UI::GetVirtualMouseDelta()
 {
-	glm::vec2 rawDelta = Input::MouseDelta();
-
-	F32 scaleX = 1920.0f / (F32)Settings::WindowWidth();
-	F32 scaleY = 1080.0f / (F32)Settings::WindowHeight();
-
-	return { rawDelta.x * scaleX, rawDelta.y * scaleY };
+	return Input::MouseDelta();
 }
 
 void UI::AttachToParent(Entity child, Entity parent)
@@ -1118,7 +1167,7 @@ Entity UI::CreatePanel(glm::vec2 localPos, glm::vec2 size, glm::vec4 color, glm:
 	return entity;
 }
 
-Entity UI::CreateText(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor, Entity parent)
+Entity UI::CreateText(const String& text, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor, Entity parent)
 {
 	Entity entity = CreateContainer(localPos, { 0.0f, 0.0f }, anchor, parent);
 
@@ -1136,13 +1185,13 @@ Entity UI::CreateText(const String& text, std::shared_ptr<Font> font, glm::vec2 
 	return entity;
 }
 
-Entity UI::CreateTextInput(std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
+Entity UI::CreateTextInput(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
 {
 	Entity root = CreatePanel(localPos, size, { 0.1f, 0.1f, 0.1f, 1.0f }, anchor, parent);
 	root.AddComponent<UIClipMask>();
 	UITextInput& inputComp = root.AddComponent<UITextInput>();
 
-	Entity textEntity = CreateText(inputComp.hintText, font, { 6.0f, size.y * 0.1f }, size.y * 0.666f, { 0.3f, 0.3f, 0.3f, 1.0f }, { 0.0f, 0.0f }, root);
+	Entity textEntity = CreateText(inputComp.hintText, { 6.0f, size.y * 0.1f }, size.y * 0.666f, { 0.3f, 0.3f, 0.3f, 1.0f }, { 0.0f, 0.0f }, root);
 	inputComp.textEntity = textEntity.Id();
 
 	Entity caret = CreatePanel({ 6.0f, 4.0f }, { 2.0f, size.y - 8.0f }, { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }, root);
@@ -1151,14 +1200,14 @@ Entity UI::CreateTextInput(std::shared_ptr<Font> font, glm::vec2 localPos, glm::
 	return root;
 }
 
-Entity UI::CreateButton(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
+Entity UI::CreateButton(const String& text, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor, Entity parent)
 {
 	Entity buttonEntity = CreatePanel(localPos, size, { 0.3f, 0.3f, 0.3f, 1.0f }, anchor, parent);
 
 	UIInteractable& interactable = buttonEntity.AddComponent<UIInteractable>();
 
 	glm::vec2 textLocalPos = { 0.0f, size.y * 0.1f };
-	Entity textEntity = CreateText(text, font, textLocalPos, 24.0f, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.0f }, buttonEntity);
+	Entity textEntity = CreateText(text, textLocalPos, 24.0f, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.0f }, buttonEntity);
 
 	interactable.OnHoverEnter = [buttonEntity]() {
 		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = { 0.4f, 0.4f, 0.4f, 1.0f };
@@ -1171,7 +1220,7 @@ Entity UI::CreateButton(const String& text, std::shared_ptr<Font> font, glm::vec
 	return buttonEntity;
 }
 
-Entity UI::CreateWindow(const String& title, std::shared_ptr<Font> font, glm::vec2 pos, glm::vec2 size, bool resizable)
+Entity UI::CreateWindow(const String& title, glm::vec2 pos, glm::vec2 size, bool resizable)
 {
 	Entity windowRoot = CreatePanel(pos, size, { 0.1f, 0.1f, 0.1f, 1.0f });
 	UIWindow& winComp = windowRoot.AddComponent<UIWindow>();
@@ -1179,7 +1228,7 @@ Entity UI::CreateWindow(const String& title, std::shared_ptr<Font> font, glm::ve
 	if (resizable) { windowRoot.AddComponent<UIResizable>(); }
 	winComp.titleBarHeight = 24.0f;
 
-	CreateText(title, font, { WindowBorderWidth, 0.0f }, 16.0f, { 0.8f, 0.8f, 0.8f, 1.0f }, { 0.0f, 0.0f }, windowRoot);
+	CreateText(title, { WindowBorderWidth, 0.0f }, 16.0f, { 0.8f, 0.8f, 0.8f, 1.0f }, { 0.0f, 0.0f }, windowRoot);
 
 	glm::vec2 bodyPos = { WindowBorderWidth, winComp.titleBarHeight };
 	glm::vec2 bodySize = { size.x - WindowBorderWidth * 2.0f, size.y - winComp.titleBarHeight - WindowBorderWidth };
@@ -1204,4 +1253,9 @@ ScrollAreaEntities UI::CreateScrollArea(glm::vec2 localPos, glm::vec2 size, glm:
 	scroll.contentEntity = content.Id();
 
 	return { viewport, content };
+}
+
+std::shared_ptr<Font> UI::GetFont()
+{
+	return font;
 }

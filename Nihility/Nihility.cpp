@@ -8,10 +8,12 @@
 #include "Core/Logger.hpp"
 #include "Core/Settings.hpp"
 #include "Physics/Physics.hpp"
+#include "Physics/Tilemap.hpp"
 #include "Resources/Resources.hpp"
 #include "Resources/Texture.hpp"
 #include "Resources/Scene.hpp"
 #include "Rendering/UI.hpp"
+#include "Rendering/Editor.hpp"
 #include "Rendering/Renderer.hpp"
 #include "Components/Registry.hpp"
 #include "Components/Components.hpp"
@@ -35,8 +37,6 @@ PlaybackHandle sfx2Handle;
 
 ChannelHandle sfxChannel;
 
-std::shared_ptr<Font> font;
-
 Scene scene{};
 
 void InitGame()
@@ -50,8 +50,6 @@ void InitGame()
 	sfx1 = Resources::Load<AudioClip>(L"GMF...DAMN");
 	sfx2 = Resources::Load<AudioClip>(L"GMFD");
 
-	font = Resources::Load<Font>(L"arial");
-
 	Input::BindAxis("Horizontal", ButtonCode::D, 1.0f);
 	Input::BindAxis("Horizontal", ButtonCode::A, -1.0f);
 	Input::BindAction("Jump", ButtonCode::Space);
@@ -62,20 +60,6 @@ void InitGame()
 	sfxChannel = Audio::CreateChannel("sfx");
 
 	scene.LoadLDtkLevel("test_level.ldtk", "Level_0");
-
-	Entity window = UI::CreateWindow("Test Window", font, { 50.0f, 50.0f }, { 600.0f, 600.0f }, true);
-
-	Entity input = UI::CreateTextInput(font, { 0.0f, 0.0f }, { 500.0f, 40.0f }, { 0.0f, 0.0f }, window);
-
-	Entity windowBody = UI::CreateWindow("Asset Browser", font, { 700.0f, 100.0f }, { 410.0f, 500.0f });
-
-	ScrollAreaEntities scrollArea = UI::CreateScrollArea({ 0.0f, 0.0f }, { 400.0f, 500.0f }, { 0.0f, 0.0f }, windowBody);
-
-	for (int i = 0; i < 50; ++i)
-	{
-		glm::vec2 btnPos = { 10.0f, (F32)i * 45.0f };
-		UI::CreateButton("Asset", font, btnPos, { 380.0f, 40.0f }, { 0.0f, 0.0f }, scrollArea.content);
-	}
 }
 
 void ShutdownGame()
@@ -107,13 +91,17 @@ void Nihility::Initialize(const WStringView& applicationName)
 	if (!Registry::Initialize()) { return; }
 	if (!UI::Initialize()) { return; }
 	if (!Physics::Initialize()) { return; }
+	if (!Tilemap::Initialize()) { return; }
 
-	//TODO: Init Game Function Ptr
+#ifdef NH_DEBUG
+	Editor::Initialize();
+#else
 	InitGame();
+#endif
 
 	if (!Registry::CompileComponentGraph()) { return; }
 
-	Entity FPSEntity = UI::CreateText("0", font, { 0.0f, 0.0f }, 50.0f, { 0.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 0.0f });
+	Entity FPSEntity = UI::CreateText("0", { 0.0f, 0.0f }, 25.0f, { 0.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 0.0f });
 	UIText& FPS = FPSEntity.GetComponent<UIText>();
 
 	while (Platform::running)
@@ -141,8 +129,11 @@ void Nihility::Initialize(const WStringView& applicationName)
 			render = Renderer::BeginFrame();
 		}
 
+#ifdef NH_DEBUG
+		Editor::Update();
+#else
 		RunGame();
-
+#endif
 		Registry::Update();
 		Audio::Update();
 
@@ -170,8 +161,13 @@ void Nihility::Shutdown()
 {
 	Renderer::Stop();
 
+#ifdef NH_DEBUG
+	Editor::Shutdown();
+#else
 	ShutdownGame();
+#endif
 
+	Tilemap::Shutdown();
 	Physics::Shutdown();
 	UI::Shutdown();
 	Registry::Shutdown();

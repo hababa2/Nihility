@@ -133,13 +133,10 @@ public:
 	static void SubmitSprite(const SpriteData& sprite);
 
 	static glm::mat4 GetViewProjectionMatrix();
+	static glm::vec4 RenderArea();
 
 	static void NameAllocation(VmaAllocation_T* allocation, const WString& name);
 	static void NameAllocation(VmaAllocation_T* allocation, const String& name);
-
-#ifdef NH_DEBUG
-	static Entity& Viewport();
-#endif
 
 private:
 	static bool Initialize(const StringView& name, U32 version);
@@ -160,6 +157,7 @@ private:
 
 	static void DestroyObjects();
 	static void ScheduleDestruction(Swapchain& swapchain);
+	static void ScheduleDestruction(Buffer& buffer);
 
 	static void DestroyTexture(Texture& texture);
 
@@ -212,14 +210,15 @@ private:
 	static VkAllocationCallbacks* allocationCallbacks;
 
 	static Vector<SwapchainDestructionData> swapchainsToDestroy;
+	static Vector<BufferDestructionData> buffersToDestroy;
 
 #ifdef NH_DEBUG
 	static RenderTarget viewportTarget;
-	static Entity viewport;
 #endif
 
 	friend class Nihility;
 	friend class Resources;
+	friend class Editor;
 	friend struct RenderTarget;
 	friend struct Swapchain;
 	friend struct Instance;

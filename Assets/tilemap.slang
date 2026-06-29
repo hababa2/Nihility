@@ -12,15 +12,17 @@ struct PushConstants
 
 struct VertexInput
 {
-	float2 position;
+	float3 position;
 	float2 uv;
+	float4 color;
 	uint texIndex;
 };
 
 struct VertexOutput
 {
 	float4 position : SV_Position;
-	float2 fragUV;
+	float2 uv;
+	float4 color;
 	nointerpolation uint fragTexIndex;
 };
 
@@ -30,8 +32,9 @@ VertexOutput vertexMain(VertexInput input)
 {
 	VertexOutput output;
 
-	output.position = mul(pc.viewProj, float4(input.position, 0.0, 1.0));
-	output.fragUV = input.uv;
+	output.position = mul(pc.viewProj, float4(input.position, 1.0));
+	output.uv = input.uv;
+	output.color = input.color;
 	output.fragTexIndex = input.texIndex;
 
 	return output;
@@ -40,6 +43,6 @@ VertexOutput vertexMain(VertexInput input)
 [shader("fragment")]
 float4 fragmentMain(VertexOutput input) : SV_Target
 {
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    return input.color;
 	//return globalTextures[NonUniformResourceIndex(input.fragTexIndex)].Sample(input.fragUV);
 }

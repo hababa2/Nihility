@@ -140,25 +140,24 @@ void RenderTarget::Destroy()
 
 void RenderTarget::StartRender(VkCommandBuffer_T* commandBuffer) const
 {
-	F32 targetAspect = 1920.0f / 1080.0f;
-	F32 targetWidth = (F32)width;
-	F32 targetHeight = (F32)height;
-	F32 panelAspect = targetWidth / targetHeight;
+	static constexpr F32 targetAspectRatio = 16.0f / 9.0f;
 
-	F32 viewWidth = targetWidth;
-	F32 viewHeight = targetHeight;
+	F32 currentAspectRatio = (F32)width / (F32)height;
+
+	F32 viewWidth = width;
+	F32 viewHeight = height;
 	F32 offsetX = 0.0f;
 	F32 offsetY = 0.0f;
-	
-	if (panelAspect > targetAspect)
+
+	if (currentAspectRatio > targetAspectRatio)
 	{
-		viewWidth = targetHeight * targetAspect;
-		offsetX = (targetWidth - viewWidth) * 0.5f;
+		viewWidth = (F32)height * targetAspectRatio;
+		offsetX = (width - viewWidth) * 0.5f;
 	}
 	else
 	{
-		viewHeight = targetWidth / targetAspect;
-		offsetY = (targetHeight - viewHeight) * 0.5f;
+		viewHeight = (F32)width / targetAspectRatio;
+		offsetY = (height - viewHeight) * 0.5f;
 	}
 
 	VkViewport viewport{};

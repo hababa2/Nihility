@@ -93,9 +93,16 @@ struct NH_API ScrollAreaEntities
 	Entity content;
 };
 
-struct NH_API UIClipMask
+struct NH_API UIClipMask {};
+
+struct NH_API UIFillParent
 {
-	bool active = true;
+	F32 padding = 0.0f;
+};
+
+struct NH_API UIProportionalSize
+{
+	glm::vec2 proportions{ 1.0f, 1.0f };
 };
 
 struct NH_API UIText
@@ -163,10 +170,10 @@ class NH_API UI
 public:
 	static Entity CreateContainer(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
 	static Entity CreatePanel(glm::vec2 localPos, glm::vec2 size, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateText(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateTextInput(std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {}); //TODO: hint text
-	static Entity CreateButton(const String& text, std::shared_ptr<Font> font, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateWindow(const String& title, std::shared_ptr<Font> font, glm::vec2 pos, glm::vec2 size, bool resizable = false);
+	static Entity CreateText(const String& text, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
+	static Entity CreateTextInput(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
+	static Entity CreateButton(const String& text, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
+	static Entity CreateWindow(const String& title, glm::vec2 pos, glm::vec2 size, bool resizable = false);
 	static ScrollAreaEntities CreateScrollArea(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
 
 	static glm::vec2 GetAbsoluteUIPosition(U32 entityId);
@@ -174,6 +181,8 @@ public:
 
 	static glm::vec2 GetVirtualMousePosition();
 	static glm::vec2 GetVirtualMouseDelta();
+
+	static std::shared_ptr<Font> GetFont();
 
 private:
 	static bool Initialize();
@@ -203,7 +212,7 @@ private:
 
 	static constexpr U32 MaxPanels = 1000;
 	static constexpr U32 MaxCharacters = 1000;
-	static constexpr F32 WindowBorderWidth = 5.0f;
+	static constexpr F32 WindowBorderWidth = 2.0f;
 
 	static U32 currentGlobalZ;
 
@@ -217,11 +226,14 @@ private:
 
 	static Vector<UIDrawCmd> drawCommands[MaxFramesInFlight];
 
+	static std::shared_ptr<Font> font;
+
 	static U32 focusedEntity;
 	static U32 hoveredEntity;
 	static U32 activeEntity;
 	static bool cursorChanged;
 
+	friend class Editor;
 	friend class Nihility;
 	friend class Renderer;
 	STATIC_CLASS(UI);

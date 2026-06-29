@@ -66,10 +66,6 @@ void Physics::Update()
 		}
 	}
 
-	auto tilemapView = Registry::View<Tilemap>();
-	if (tilemapView.Size() == 0) { return; }
-	Tilemap& activeTilemap = Registry::GetComponent<Tilemap>(tilemapView.GetEntity(0));
-
 	auto view = Registry::View<Rigidbody2D, ColliderAABB>();
 	std::span<const U32> entities = Registry::GetSet<Rigidbody2D>().GetDenseEntities();
 
@@ -87,20 +83,20 @@ void Physics::Update()
 			body.isGrounded = false;
 			body.isAgainstWall = false;
 
-			if (activeTilemap.SweepX(transform, collider, body.velocity))
+			if (Tilemap::SweepX(transform, collider, body.velocity))
 			{
 				body.isAgainstWall = true;
 			}
 
-			if (activeTilemap.SweepY(transform, collider, body.velocity))
+			if (Tilemap::SweepY(transform, collider, body.velocity))
 			{
 				if (body.velocity.y <= 0.0f) { body.isGrounded = true; }
 			}
 
-			I32 tileX = (I32)std::floor(transform.position.x / activeTilemap.tileSize);
-			I32 tileY = (I32)std::floor(transform.position.y / activeTilemap.tileSize);
+			I32 tileX = (I32)std::floor(transform.position.x / Tilemap::TileSize);
+			I32 tileY = (I32)std::floor(transform.position.y / Tilemap::TileSize);
 
-			if (activeTilemap.GetTile(tileX, tileY) == TileType::Hazard)
+			if (Tilemap::GetTileCollision(tileX, tileY) == CollisionFlags::Hazard)
 			{
 				if (Registry::GetSet<PlayerController>().Has(id))
 				{

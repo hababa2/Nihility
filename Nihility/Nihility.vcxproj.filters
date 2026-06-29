@@ -47,6 +47,9 @@
     <Filter Include="Lib\msdfgen">
       <UniqueIdentifier>{e25ad1d2-9c55-4f06-abcf-78f164790ac0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Rendering\UI">
+      <UniqueIdentifier>{9e571a89-a4a6-4261-85cd-3cf53b42927e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Nihility.hpp">
@@ -163,14 +166,17 @@
     <ClInclude Include="Rendering\Buffer.hpp">
       <Filter>Source Files\Rendering</Filter>
     </ClInclude>
-    <ClInclude Include="Rendering\UI.hpp">
-      <Filter>Source Files\Rendering</Filter>
-    </ClInclude>
     <ClInclude Include="Resources\Font.hpp">
       <Filter>Source Files\Resources</Filter>
     </ClInclude>
     <ClInclude Include="Rendering\RenderTarget.hpp">
       <Filter>Source Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\UI.hpp">
+      <Filter>Source Files\Rendering\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Rendering\Editor.hpp">
+      <Filter>Source Files\Rendering\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -258,9 +264,6 @@
     <ClCompile Include="Resources\Scene.cpp">
       <Filter>Source Files\Resources</Filter>
     </ClCompile>
-    <ClCompile Include="Rendering\UI.cpp">
-      <Filter>Source Files\Rendering</Filter>
-    </ClCompile>
     <ClCompile Include="Resources\Font.cpp">
       <Filter>Source Files\Resources</Filter>
     </ClCompile>
@@ -320,6 +323,12 @@
     </ClCompile>
     <ClCompile Include="Rendering\RenderTarget.cpp">
       <Filter>Source Files\Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\UI.cpp">
+      <Filter>Source Files\Rendering\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Rendering\Editor.cpp">
+      <Filter>Source Files\Rendering\UI</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

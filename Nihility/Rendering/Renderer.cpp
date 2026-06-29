@@ -3,6 +3,7 @@
 #include "VulkanInclude.hpp"
 #include "Nihility.hpp"
 #include "Shader.hpp"
+#include "Editor.hpp"
 #include "UI.hpp"
 
 #include "Core/Settings.hpp"
@@ -113,9 +114,11 @@ VmaAllocator Renderer::vmaAllocator;
 VkAllocationCallbacks* Renderer::allocationCallbacks;
 
 Vector<SwapchainDestructionData> Renderer::swapchainsToDestroy;
+Vector<BufferDestructionData> Renderer::buffersToDestroy;
 
+#ifdef NH_DEBUG
 RenderTarget Renderer::viewportTarget;
-Entity Renderer::viewport;
+#endif
 
 bool Renderer::Initialize(const StringView& name, U32 version)
 {
@@ -135,13 +138,9 @@ bool Renderer::Initialize(const StringView& name, U32 version)
 	if (!CreateSynchronization()) { Logger::Fatal("Failed To Create Synchronization Objects!"); return false; }
 	if (!CreateCommandBuffers()) { Logger::Fatal("Failed To Create Command Buffers!"); return false; }
 
-	Entity editorBg = UI::CreatePanel({ 0.0f, 0.0f }, { 1920.0f, 1080.0f }, { 0.15f, 0.15f, 0.15f, 1.0f });
-	viewport = UI::CreatePanel({ 300.0f, 0.0f }, { 1280.0f, 720.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }, editorBg);
-	viewport.AddComponent<UIResizable>();
-
-	viewportTarget.Create((F32)Settings::WindowWidth() * 0.6666f, (F32)Settings::WindowHeight() * 0.6666f);
-
-	Registry::GetComponent<UIPanel>(viewport.Id()).textureId = viewportTarget.Id();
+#ifdef NH_DEBUG
+	viewportTarget.Create(1920, 1080);
+#endif
 
 	return true;
 }
@@ -167,7 +166,9 @@ void Renderer::Shutdown()
 
 	DestroyObjects();
 
+#ifdef NH_DEBUG
 	viewportTarget.Destroy();
+#endif
 
 	vkDestroySemaphore(device, frameTimelineSemaphore, allocationCallbacks);
 
@@ -303,23 +304,61 @@ void Renderer::EndFrame()
 	std::span<const SpriteData> activeSprites = renderData.GetActiveSprites();
 	U32 spriteCount = (U32)activeSprites.size();
 
-	UIRect& vpRect = Registry::GetComponent<UIRect>(viewport.Id());
-
-	U32 desiredWidth = (U32)glm::max(1.0f, vpRect.size.x);
-	U32 desiredHeight = (U32)glm::max(1.0f, vpRect.size.y);
-
-	if (desiredWidth != viewportTarget.Width() || desiredHeight != viewportTarget.Height())
-	{
-		vkDeviceWaitIdle(device);
-		viewportTarget.Recreate(desiredWidth, desiredHeight);
-	}
-
 	VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	vkBeginCommandBuffer(primaryCmd, &beginInfo);
 
-	viewportTarget.StartRender(primaryCmd);
+#ifdef NH_DEBUG
+	UIRect& rect = Registry::GetComponent<UIRect>(Editor::viewportPanel.Id());
 
+	U32 width = glm::max(1u, (U32)rect.size.x);
+	U32 height = glm::max(1u, (U32)rect.size.y);
+
+	if (width != viewportTarget.Width() || height != viewportTarget.Height())
+	{
+		vkDeviceWaitIdle(device);
+		viewportTarget.Recreate(width, height);
+	}
+
+	viewportTarget.StartRender(primaryCmd);
+#else
+	glm::vec4 area = Renderer::RenderArea();
+
+	VkViewport viewport{};
+	viewport.x = area.x;
+	viewport.y = area.y;
+	viewport.width = area.z;
+	viewport.height = area.w;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(primaryCmd, 0, 1, &viewport);
+
+	VkRect2D scissor{};
+	scissor.offset = { (I32)area.x, (I32)area.y };
+	scissor.extent = { (U32)area.z, (U32)area.w };
+	vkCmdSetScissor(primaryCmd, 0, 1, &scissor);
+
+	Renderer::TransitionImageLayout(primaryCmd, swapchain.images[imageIndex],
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+	VkRenderingAttachmentInfo viewportAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	viewportAttachment.imageView = swapchain.imageViews[imageIndex];
+	viewportAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	viewportAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	viewportAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	viewportAttachment.clearValue = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+
+	VkRenderingInfo renderingInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.renderArea = { { 0, 0 }, { surfaceWidth, surfaceHeight } };
+	renderingInfo.layerCount = 1;
+	renderingInfo.colorAttachmentCount = 1;
+	renderingInfo.pColorAttachments = &viewportAttachment;
+	renderingInfo.flags = 0;
+
+	vkCmdBeginRendering(primaryCmd, &renderingInfo);
+#endif
 	RenderTilemaps(primaryCmd);
 
 	if (spriteCount > 0)
@@ -332,7 +371,7 @@ void Renderer::EndFrame()
 		vkCmdBindDescriptorSets(primaryCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, spriteShader.vkPipelineLayout, 0, CountOf32(sets), sets, 0, nullptr);
 		vkCmdDraw(primaryCmd, 4, spriteCount, 0, 0);
 	}
-
+#ifdef NH_DEBUG
 	viewportTarget.EndRender(primaryCmd);
 
 	TransitionImageLayout(primaryCmd, swapchain.images[imageIndex],
@@ -378,7 +417,16 @@ void Renderer::EndFrame()
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 		VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
+#else
+	UI::Render(primaryCmd);
 
+	vkCmdEndRendering(primaryCmd);
+
+	TransitionImageLayout(primaryCmd, swapchain.images[imageIndex],
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
+#endif
 	vkEndCommandBuffer(primaryCmd);
 
 	VkCommandBufferSubmitInfo cmdSubmitInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
@@ -666,11 +714,28 @@ void Renderer::DestroyObjects()
 	}
 
 	swapchainsToDestroy.clear();
+
+	//BUFFERS
+	for (BufferDestructionData& data : buffersToDestroy)
+	{
+		if (data.vkBuffer != nullptr)
+		{
+			vmaDestroyBuffer(vmaAllocator, data.vkBuffer, data.allocation);
+			data.vkBuffer = nullptr;
+		}
+	}
+
+	buffersToDestroy.clear();
 }
 
 void Renderer::ScheduleDestruction(Swapchain& swapchain)
 {
 	swapchainsToDestroy.emplace_back(Move(swapchain.imageViews), swapchain.vkSwapchain);
+}
+
+void Renderer::ScheduleDestruction(Buffer& buffer)
+{
+	buffersToDestroy.emplace_back(buffer.vkBuffer, buffer.allocation);
 }
 
 void Renderer::DestroyTexture(Texture& texture)
@@ -968,11 +1033,7 @@ Buffer Renderer::CreateBuffer(U64 size, U64 usage, VmaMemoryUsage memoryUsage)
 
 void Renderer::DestroyBuffer(Buffer& buffer)
 {
-	if (buffer.vkBuffer != nullptr)
-	{
-		vmaDestroyBuffer(vmaAllocator, buffer.vkBuffer, buffer.allocation);
-		buffer.vkBuffer = nullptr;
-	}
+	ScheduleDestruction(buffer);
 }
 
 void Renderer::UploadToBuffer(Buffer& dstBuffer, const void* data, U64 size, U32 threadId)
@@ -1008,29 +1069,59 @@ void Renderer::SubmitSprite(const SpriteData& sprite)
 	extractor.SubmitSprite(sprite);
 }
 
-glm::mat4  Renderer::GetViewProjectionMatrix()
+glm::mat4 Renderer::GetViewProjectionMatrix()
 {
 	auto cameraView = Registry::View<Camera>();
 	glm::mat4 viewMatrix = glm::mat4(1.0f);
 
-	F32 physicalAspect = (F32)Settings::WindowWidth() / (F32)Settings::WindowHeight();
-
-	F32 virtualHeight = 1080.0f;
-	F32 virtualWidth = virtualHeight * physicalAspect;
+	F32 width = 1920.0f;
+	F32 height = 1080.0f;
 
 	if (cameraView.Size() > 0)
 	{
 		U32 activeCamId = cameraView.GetEntity(0);
 		Transform2D& camTrans = Registry::GetTransform(activeCamId);
 
-		glm::vec2 halfScreen = glm::vec2(virtualWidth * 0.5f, virtualHeight * 0.5f);
+		glm::vec2 halfScreen = glm::vec2(width, height) / 2.0f;
 		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position + halfScreen, 0.0f));
 	}
 
-	glm::mat4 projection = glm::ortho(0.0f, virtualWidth, 0.0f, virtualHeight, -1.0f, 1.0f);
+	glm::mat4 projection = glm::ortho(0.0f, width, 0.0f, height, -1.0f, 1.0f);
 	return projection * viewMatrix;
 }
 
+glm::vec4 Renderer::RenderArea()
+{
+	static constexpr F32 targetAspectRatio = 16.0f / 9.0f;
+#ifdef NH_DEBUG
+	UIRect& vpRect = Registry::GetComponent<UIRect>(Editor::viewportPanel.Id());
+
+	F32 width = vpRect.size.x;
+	F32 height = vpRect.size.y;
+#else
+	F32 width = (F32)surfaceWidth;
+	F32 height = (F32)surfaceHeight;
+#endif
+	F32 currentAspectRatio = width / height;
+
+	F32 viewWidth = width;
+	F32 viewHeight = height;
+	F32 offsetX = 0.0f;
+	F32 offsetY = 0.0f;
+
+	if (currentAspectRatio > targetAspectRatio)
+	{
+		viewWidth = height * targetAspectRatio;
+		offsetX = (width - viewWidth) * 0.5f;
+	}
+	else
+	{
+		viewHeight = width / targetAspectRatio;
+		offsetY = (height - viewHeight) * 0.5f;
+	}
+
+	return { offsetX, offsetY, viewWidth, viewHeight };
+}
 
 void Renderer::NameAllocation(VmaAllocation_T* allocation, const WString& name)
 {
@@ -1044,9 +1135,4 @@ void Renderer::NameAllocation(VmaAllocation_T* allocation, const String& name)
 #ifdef NH_DEBUG
 	vmaSetAllocationName(vmaAllocator, allocation, name.data());
 #endif
-}
-
-Entity& Renderer::Viewport()
-{
-	return viewport;
 }

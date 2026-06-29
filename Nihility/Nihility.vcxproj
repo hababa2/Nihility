@@ -112,6 +112,7 @@
     <ClInclude Include="Platform\WindowsInclude.hpp" />
     <ClInclude Include="Rendering\Buffer.hpp" />
     <ClInclude Include="Rendering\Device.hpp" />
+    <ClInclude Include="Rendering\Editor.hpp" />
     <ClInclude Include="Rendering\FrameArena.hpp" />
     <ClInclude Include="Rendering\Instance.hpp" />
     <ClInclude Include="Rendering\PhysicalDevice.hpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="Platform\Memory.cpp" />
     <ClCompile Include="Platform\PlatformWindows.cpp" />
     <ClCompile Include="Rendering\Device.cpp" />
+    <ClCompile Include="Rendering\Editor.cpp" />
     <ClCompile Include="Rendering\Instance.cpp" />
     <ClCompile Include="Rendering\PhysicalDevice.cpp" />
     <ClCompile Include="Rendering\Renderer.cpp" />
