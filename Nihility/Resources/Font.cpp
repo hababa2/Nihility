@@ -136,6 +136,6 @@ void Font::CreateKerning(stbtt_fontinfo* info, Hashmap<I32, C>& glyphToCodepoint
 		it = glyphToCodepoint.find(entry.glyph1);
 		if (it == glyphToCodepoint.end() || it->second < 32 || it->second > 127 || (it->second >= '0' && it->second <= '9')) { continue; }
 
-		glyphs[codepoint].kerning[it->second - 32] = entry.advance;
+		glyphs[codepoint].kerning[it->second - 32] = (F32)entry.advance;
 	}
 }

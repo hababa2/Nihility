@@ -136,7 +136,7 @@ void ExtractAndPadBlock(const U8* rgbaPixels, U32 imgWidth, U32 imgHeight, U32 b
 	}
 }
 
-void Resources::UploadTexture(const FileData& data, void* userData)
+void Resources::UploadTexture(FileData& data, void* userData)
 {
 	WString* filename = (WString*)userData;
 
@@ -368,7 +368,7 @@ static I64 MemTell(void* userData)
 	return state->position;
 }
 
-void Resources::UploadAudio(const FileData& data, void* userData)
+void Resources::UploadAudio(FileData& data, void* userData)
 {
 	WString* filename = (WString*)userData;
 
@@ -481,7 +481,7 @@ void Resources::UploadAudio(const FileData& data, void* userData)
 	FileIO::FreeData(data);
 }
 
-void Resources::UploadFont(const FileData& data, void* userData)
+void Resources::UploadFont(FileData& data, void* userData)
 {
 	using namespace msdfgen;
 
@@ -588,7 +588,7 @@ void Resources::UploadFont(const FileData& data, void* userData)
 	FileIO::FreeData(data);
 }
 
-void Resources::UploadFileFinished(const FileData& data, void* userData)
+void Resources::UploadFileFinished(FileData& data, void* userData)
 {
 	//TODO: Record file metadata
 

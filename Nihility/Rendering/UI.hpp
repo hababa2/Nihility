@@ -4,6 +4,7 @@
 
 #include "Shader.hpp"
 #include "Buffer.hpp"
+#include "Core/Function.hpp"
 #include "Core/Containers.hpp"
 #include "Components/Registry.hpp"
 #include "Resources/Resources.hpp"
@@ -52,9 +53,9 @@ struct NH_API UIInteractable
 	bool isHovered = false;
 	bool isPressed = false;
 
-	std::function<void()> OnClick = nullptr;
-	std::function<void()> OnHoverEnter = nullptr;
-	std::function<void()> OnHoverExit = nullptr;
+	Function<void()> OnClick = nullptr;
+	Function<void()> OnHoverEnter = nullptr;
+	Function<void()> OnHoverExit = nullptr;
 };
 
 struct NH_API UIWindow

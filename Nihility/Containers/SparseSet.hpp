@@ -4,14 +4,17 @@
 
 #include "Core/Containers.hpp"
 
-template<typename T>
-class SparseSet
+struct ISparseSet
 {
-private:
-	Vector<T> denseData;
-	Vector<U32> denseEntities;
-	Vector<U32> sparseIndices;
+public:
+	virtual ~ISparseSet() = default;
+	virtual void Remove(U32 entity) = 0;
+	virtual bool Has(U32 entity) const = 0;
+};
 
+template<typename T>
+struct SparseSet : public ISparseSet
+{
 public:
 	template<typename... Args>
 	T& Add(U32 entity, Args&&... args)
@@ -33,7 +36,7 @@ public:
 		return denseData[sparseIndices[entity]];
 	}
 
-	bool Has(U32 entity) const
+	bool Has(U32 entity) const final
 	{
 		return entity < sparseIndices.size() && sparseIndices[entity] != U32_MAX;
 	}
@@ -41,7 +44,7 @@ public:
 	std::span<T> GetDenseData() { return denseData; }
 	std::span<const U32> GetDenseEntities() const { return denseEntities; }
 
-	void Remove(U32 entity)
+	void Remove(U32 entity) final
 	{
 		U32 denseIndex = sparseIndices[entity];
 		U32 lastDenseIndex = (U32)denseData.size() - 1;
@@ -60,4 +63,9 @@ public:
 
 		sparseIndices[entity] = U32_MAX;
 	}
+
+private:
+	Vector<T> denseData;
+	Vector<U32> denseEntities;
+	Vector<U32> sparseIndices;
 };

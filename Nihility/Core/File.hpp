@@ -2,7 +2,7 @@
 
 #include "Defines.hpp"
 #include "Core/Containers.hpp"
-#include "Containers/Pool.hpp"
+#include "Core/Function.hpp"
 
 #include <thread>
 #include <atomic>
@@ -15,7 +15,7 @@ struct FileData
 	U32 threadId;
 };
 
-using FileIOCallback = void(*)(const FileData&, void*);
+using FileIOCallback = Function<void(FileData&, void*)>;
 
 constexpr U64 SectorSize = 4096;
 constexpr U32 MainThread = U32_MAX;

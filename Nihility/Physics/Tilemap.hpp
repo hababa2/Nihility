@@ -7,6 +7,9 @@
 #include "Components/Components.hpp"
 #include "Rendering/Buffer.hpp"
 
+static constexpr U32 ChunkSize = 32;
+static constexpr F32 TileSize = 32.0f;
+
 enum class TileLayer
 {
 	Background,
@@ -38,7 +41,7 @@ struct NH_API TilemapChunk
 
 	glm::ivec2 gridPosition{ 0, 0 };
 
-	Array<Vector<Tile>, (U32)TileLayer::Count> layers;
+	Array<Array<Tile, ChunkSize* ChunkSize>, (U32)TileLayer::Count> layers{};
 
 	bool isDirty = true;
 };
@@ -69,12 +72,14 @@ class NH_API Tilemap
 public:
 	static U32 GetTileCollision(I32 x, I32 y);
 	static Entity GetOrCreateChunk(I32 chunkX, I32 chunkY);
+	static Entity GetChunk(I32 chunkX, I32 chunkY);
+	static Tile& GetTileAtGlobal(I32 gridX, I32 gridY, U32 layer, bool write = false);
 
 	static bool SweepX(Transform2D& transform, const ColliderAABB& aabb, glm::vec2& velocity);
 	static bool SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2& velocity);
 
-	static constexpr U32 ChunkSize = 32;
-	static constexpr F32 TileSize = 32.0f;
+	static void Save(const String& filepath);
+	static void Load(const String& filepath);
 
 private:
 	static bool Initialize();

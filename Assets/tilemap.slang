@@ -43,6 +43,5 @@ VertexOutput vertexMain(VertexInput input)
 [shader("fragment")]
 float4 fragmentMain(VertexOutput input) : SV_Target
 {
-    return input.color;
-	//return globalTextures[NonUniformResourceIndex(input.fragTexIndex)].Sample(input.fragUV);
+	return globalTextures[NonUniformResourceIndex(input.fragTexIndex)].Sample(input.uv) * input.color;
 }

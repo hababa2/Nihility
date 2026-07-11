@@ -342,12 +342,12 @@ void UI::ProcessInteractable(U32 id)
 	if (isCurrentlyHovered && !interactable.isHovered)
 	{
 		interactable.isHovered = true;
-		if (interactable.OnHoverEnter) interactable.OnHoverEnter();
+		if (interactable.OnHoverEnter) { interactable.OnHoverEnter(); }
 	}
 	else if (!isCurrentlyHovered && interactable.isHovered)
 	{
 		interactable.isHovered = false;
-		if (interactable.OnHoverExit) interactable.OnHoverExit();
+		if (interactable.OnHoverExit) { interactable.OnHoverExit(); }
 	}
 
 	if (id == activeEntity)

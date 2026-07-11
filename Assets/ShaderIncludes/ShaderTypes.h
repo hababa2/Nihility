@@ -35,4 +35,15 @@ struct SpriteData
 	uint pad1;
 };
 
+struct GridPushConstants
+{
+	float2 camPos;
+	float2 camZoom;
+	float2 offset;
+	float scale;
+	float tileSize;
+	float chunkMult;
+	float padding;
+};
+
 #endif

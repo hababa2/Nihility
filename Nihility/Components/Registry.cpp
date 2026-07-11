@@ -159,6 +159,8 @@ Transform2D& Entity::Transform()
 Vector<Transform2D> Registry::transforms;
 Vector<U32> Registry::freeEntities;
 
+Vector<ISparseSet*> Registry::componentPools;
+
 Vector<ComponentNode> Registry::registeredComponentUpdates;
 Vector<ComponentUpdateFn> Registry::executionOrder;
 
@@ -221,6 +223,23 @@ Entity Registry::CreateEntity(glm::vec2 position, glm::vec2 scale, F32 rotation)
 	t.rotation = rotation;
 
 	return CreateEntity(t);
+}
+
+void Registry::DestroyEntity(Entity& entity)
+{
+	if (entity.id == U32_MAX) { return; }
+
+	for (ISparseSet* pool : componentPools)
+	{
+		if (pool->Has(entity.id))
+		{
+			pool->Remove(entity.id);
+		}
+	}
+
+	freeEntities.push_back(entity.id);
+
+	entity.id = U32_MAX;
 }
 
 Transform2D& Registry::GetTransform(U32 id)

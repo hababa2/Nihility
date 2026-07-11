@@ -88,6 +88,8 @@ public:
 	static Entity CreateEntity(const Transform2D& transform);
 	static Entity CreateEntity(glm::vec2 position = { 0.0f, 0.0f }, glm::vec2 scale = { 1.0f, 1.0f }, F32 rotation = { 0.0f });
 
+	static void DestroyEntity(Entity& entity);
+
 	static Transform2D& GetTransform(U32 id);
 
 	template<class Component, typename... Args>
@@ -119,6 +121,8 @@ private:
 
 	static Vector<Transform2D> transforms;
 	static Vector<U32> freeEntities;
+
+	static Vector<ISparseSet*> componentPools;
 
 	static Vector<ComponentNode> registeredComponentUpdates;
 	static Vector<ComponentUpdateFn> executionOrder;
@@ -174,7 +178,15 @@ inline void Registry::RemoveComponent(U32 id)
 template<typename Component>
 inline SparseSet<Component>& Registry::GetSet()
 {
-	static SparseSet<Component> set; //TODO: preallocate?
+	static SparseSet<Component> set;
+
+	static bool isRegistered = false;
+	if (!isRegistered)
+	{
+		componentPools.push_back(&set);
+		isRegistered = true;
+	}
+
 	return set;
 }
 

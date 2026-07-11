@@ -65,11 +65,11 @@ private:
 	}
 
 	static WString UploadResource(const Path& path);
-	static void UploadTexture(const FileData& data, void* userData);
-	static void UploadAudio(const FileData& data, void* userData);
-	static void UploadFont(const FileData& data, void* userData);
+	static void UploadTexture(FileData& data, void* userData);
+	static void UploadAudio(FileData& data, void* userData);
+	static void UploadFont(FileData& data, void* userData);
 
-	static void UploadFileFinished(const FileData& data, void* userData);
+	static void UploadFileFinished(FileData& data, void* userData);
 
 	static U32 GetTextureId();
 

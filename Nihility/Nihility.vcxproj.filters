@@ -178,6 +178,9 @@
     <ClInclude Include="Rendering\Editor.hpp">
       <Filter>Source Files\Rendering\UI</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Function.hpp">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Nihility.cpp">

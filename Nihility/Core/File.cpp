@@ -1,6 +1,8 @@
 #include "File.hpp"
 
 #include "Nihility.hpp"
+
+#include "Containers/Pool.hpp"
 #include "Platform/WindowsInclude.hpp"
 #include "Core/Logger.hpp"
 
@@ -117,7 +119,7 @@ bool FileIO::ReadFileAsync(const Path& path, FileIOCallback callback, void* user
 	req->bytesToTransfer = alignedSize;
 	req->userData = userData;
 	req->fileHandle = hFile;
-	req->onComplete = callback;
+	req->onComplete = std::move(callback);
 	req->Offset = 0;
 	req->OffsetHigh = 0;
 
@@ -156,7 +158,7 @@ bool FileIO::ReadPartialFileAsync(const Path& path, U64 offset, U64 readSize, Fi
 	req->dataSize = readSize;
 	req->bytesToTransfer = alignedSize;
 	req->userData = userData;
-	req->onComplete = callback;
+	req->onComplete = std::move(callback);
 
 	req->Offset = (UL32)alignedOffset;
 	req->OffsetHigh = (UL32)(alignedOffset >> 32);
@@ -203,7 +205,7 @@ bool FileIO::WriteFileAsync(const Path& path, const void* data, U64 size, U64 of
 	req->dataSize = size;
 	req->bytesToTransfer = alignedSize;
 	req->userData = userData;
-	req->onComplete = callback;
+	req->onComplete = std::move(callback);
 	req->fileHandle = hFile;
 	req->Offset = (UL32)alignedOffset;
 	req->OffsetHigh = (UL32)(alignedOffset >> 32);

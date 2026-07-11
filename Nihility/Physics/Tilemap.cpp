@@ -3,18 +3,14 @@
 #include "Physics.hpp"
 
 #include "Core/Time.hpp"
+#include "Core/File.hpp"
+#include "Core/DataReader.hpp"
 #include "Rendering/VulkanInclude.hpp"
 #include "Rendering/Renderer.hpp"
 
 #include "vma/vk_mem_alloc.h"
 
-TilemapChunk::TilemapChunk()
-{
-	for (U32 i = 0; i < (U32)TileLayer::Count; ++i)
-	{
-		layers[i].resize(Tilemap::ChunkSize * Tilemap::ChunkSize);
-	}
-}
+TilemapChunk::TilemapChunk() {}
 
 Hashmap<U64, Entity> Tilemap::chunkMap;
 
@@ -65,8 +61,8 @@ void Tilemap::Update()
 		U32 vertexOffset = 0;
 
 		glm::vec2 chunkOrigin = {
-			(F32)(chunk.gridPosition.x * ChunkSize) * TileSize,
-			(F32)(chunk.gridPosition.y * ChunkSize) * TileSize
+			(F32)chunk.gridPosition.x * ChunkSize * TileSize,
+			(F32)chunk.gridPosition.y * ChunkSize * TileSize
 		};
 
 		for (U32 layerIdx = 0; layerIdx < (U32)TileLayer::Count; ++layerIdx)
@@ -214,6 +210,42 @@ Entity Tilemap::GetOrCreateChunk(I32 chunkX, I32 chunkY)
 	return chunkEntity;
 }
 
+Entity Tilemap::GetChunk(I32 chunkX, I32 chunkY)
+{
+	U64 key = ((U64)(U32)chunkX << 32) | (U32)chunkY;
+
+	auto it = chunkMap.find(key);
+	if (it != chunkMap.end())
+	{
+		return it->second;
+	}
+
+	return {};
+}
+
+Tile& Tilemap::GetTileAtGlobal(I32 gridX, I32 gridY, U32 layer, bool write)
+{
+	I32 chunkX = (I32)glm::floor((F32)gridX / (F32)ChunkSize);
+	I32 chunkY = (I32)glm::floor((F32)gridY / (F32)ChunkSize);
+
+	U32 localX = (U32)(((gridX % ChunkSize) + ChunkSize) % ChunkSize);
+	U32 localY = (U32)(((gridY % ChunkSize) + ChunkSize) % ChunkSize);
+
+	Entity chunkEntity = write ? GetOrCreateChunk(chunkX, chunkY) : GetChunk(chunkX, chunkY);
+
+	static Tile emptyTile = { U32_MAX, 0 };
+
+	if (chunkEntity.Id() == U32_MAX) 
+	{
+		return emptyTile;
+	}
+
+	TilemapChunk& chunkData = Registry::GetComponent<TilemapChunk>(chunkEntity.Id());
+	if (write) { chunkData.isDirty = true; }
+
+	return chunkData.layers[layer][localY * ChunkSize + localX];
+}
+
 bool Tilemap::SweepX(Transform2D& transform, const ColliderAABB& aabb, glm::vec2& velocity)
 {
 	F32 amount = velocity.x * (F32)Time::DeltaTime();
@@ -226,8 +258,8 @@ bool Tilemap::SweepX(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 	F32 topY = transform.position.y + aabb.offset.y + aabb.halfExtents.y - Inset;
 	F32 bottomY = transform.position.y + aabb.offset.y - aabb.halfExtents.y + Inset;
 
-	I32 startTileY = (I32)std::floor(bottomY / TileSize);
-	I32 endTileY = (I32)std::floor(topY / TileSize);
+	I32 startTileY = (I32)glm::floor(bottomY / TileSize);
+	I32 endTileY = (I32)glm::floor(topY / TileSize);
 
 	F32 currentEdgeX = movingRight ?
 		(transform.position.x + aabb.offset.x + aabb.halfExtents.x) :
@@ -235,8 +267,8 @@ bool Tilemap::SweepX(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 
 	F32 leadingEdgeX = currentEdgeX + amount;
 
-	I32 startTileX = (I32)std::floor(currentEdgeX / TileSize);
-	I32 endTileX = (I32)std::floor(leadingEdgeX / TileSize);
+	I32 startTileX = (I32)glm::floor(currentEdgeX / TileSize);
+	I32 endTileX = (I32)glm::floor(leadingEdgeX / TileSize);
 
 	I32 stepX = movingRight ? 1 : -1;
 
@@ -273,8 +305,8 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 	F32 rightX = transform.position.x + aabb.offset.x + aabb.halfExtents.x - Inset;
 	F32 leftX = transform.position.x + aabb.offset.x - aabb.halfExtents.x + Inset;
 
-	I32 startTileX = (I32)std::floor(leftX / TileSize);
-	I32 endTileX = (I32)std::floor(rightX / TileSize);
+	I32 startTileX = (I32)glm::floor(leftX / TileSize);
+	I32 endTileX = (I32)glm::floor(rightX / TileSize);
 
 	F32 currentEdgeY = movingDown ?
 		(transform.position.y + aabb.offset.y + aabb.halfExtents.y) :
@@ -282,8 +314,8 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 
 	F32 leadingEdgeY = currentEdgeY + amount;
 
-	I32 startTileY = (I32)std::floor(currentEdgeY / TileSize);
-	I32 endTileY = (I32)std::floor(leadingEdgeY / TileSize);
+	I32 startTileY = (I32)glm::floor(currentEdgeY / TileSize);
+	I32 endTileY = (I32)glm::floor(leadingEdgeY / TileSize);
 
 	I32 stepY = movingDown ? 1 : -1;
 
@@ -338,4 +370,75 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 
 	transform.position.y = newY;
 	return false;
+}
+
+void Tilemap::Save(const String& filepath)
+{
+	U32 chunkCount = (U32)chunkMap.size();
+	
+	U32 bufferSize = sizeof(U32) + (sizeof(U64) + sizeof(TilemapChunk::layers)) * chunkCount;
+	
+	U8* buffer;
+	Memory::Allocate(&buffer, bufferSize);
+	U8* pointer = buffer;
+	
+	memcpy(pointer, (U8*)&chunkCount, sizeof(U32));
+	pointer += sizeof(U32);
+	
+	for (const auto& [key, entity] : chunkMap)
+	{
+		memcpy(pointer, (U8*)&key, sizeof(U64));
+		pointer += sizeof(U64);
+	
+		TilemapChunk& chunk = Registry::GetComponent<TilemapChunk>(entity.Id());
+		memcpy(pointer, (U8*)&chunk.layers, sizeof(chunk.layers));
+		pointer += sizeof(chunk.layers);
+	}
+	
+	FileIO::WriteFileAsync(filepath, buffer, bufferSize);
+}
+
+void Tilemap::Load(const String& filepath)
+{
+	auto FinishLoad = [&](FileData& data, void*) {
+		for (auto& [key, entity] : chunkMap)
+		{
+			if (Registry::HasComponent<TilemapRenderData>(entity.Id()))
+			{
+				TilemapRenderData& rd = Registry::GetComponent<TilemapRenderData>(entity.Id());
+				if (rd.isInitialized)
+				{
+					Renderer::DestroyBuffer(rd.vertexBuffer);
+					Renderer::DestroyBuffer(rd.indexBuffer);
+				}
+			}
+
+			Registry::DestroyEntity(entity);
+		}
+
+		chunkMap.clear();
+
+		DataReader reader(data);
+
+		U32 chunkCount = 0;
+		reader.Read(chunkCount);
+
+		for (U32 i = 0; i < chunkCount; ++i)
+		{
+			U64 key = 0;
+			reader.Read(key);
+
+			I32 chunkX = (I32)(key >> 32);
+			I32 chunkY = (I32)(key & 0xFFFFFFFF);
+
+			Entity chunkEntity = GetOrCreateChunk(chunkX, chunkY);
+			TilemapChunk& chunk = Registry::GetComponent<TilemapChunk>(chunkEntity.Id());
+
+			reader.Read(&chunk.layers, sizeof(chunk.layers));
+
+			chunk.isDirty = true;
+		}
+	};
+	
+	FileIO::ReadFileAsync(filepath, FinishLoad);
 }

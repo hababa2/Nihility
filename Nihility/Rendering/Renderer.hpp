@@ -218,6 +218,7 @@ private:
 
 	friend class Nihility;
 	friend class Resources;
+	friend class Tilemap;
 	friend class Editor;
 	friend struct RenderTarget;
 	friend struct Swapchain;

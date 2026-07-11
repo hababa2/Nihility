@@ -144,8 +144,8 @@ void RenderTarget::StartRender(VkCommandBuffer_T* commandBuffer) const
 
 	F32 currentAspectRatio = (F32)width / (F32)height;
 
-	F32 viewWidth = width;
-	F32 viewHeight = height;
+	F32 viewWidth = (F32)width;
+	F32 viewHeight = (F32)height;
 	F32 offsetX = 0.0f;
 	F32 offsetY = 0.0f;
 

@@ -372,6 +372,7 @@ void Renderer::EndFrame()
 		vkCmdDraw(primaryCmd, 4, spriteCount, 0, 0);
 	}
 #ifdef NH_DEBUG
+	Editor::RenderGrid(primaryCmd);
 	viewportTarget.EndRender(primaryCmd);
 
 	TransitionImageLayout(primaryCmd, swapchain.images[imageIndex],
@@ -1083,7 +1084,11 @@ glm::mat4 Renderer::GetViewProjectionMatrix()
 		Transform2D& camTrans = Registry::GetTransform(activeCamId);
 
 		glm::vec2 halfScreen = glm::vec2(width, height) / 2.0f;
+#ifdef NH_DEBUG
+		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position, 0.0f));
+#else
 		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position + halfScreen, 0.0f));
+#endif
 	}
 
 	glm::mat4 projection = glm::ortho(0.0f, width, 0.0f, height, -1.0f, 1.0f);
