@@ -41,9 +41,6 @@
     <Filter Include="Source Files\Physics">
       <UniqueIdentifier>{bc81381c-b8b9-4950-99ee-8f75b7c557fd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Lib\simdjson">
-      <UniqueIdentifier>{1ef9a33f-c88e-4c23-b78f-0035e2b5fd8e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Lib\msdfgen">
       <UniqueIdentifier>{e25ad1d2-9c55-4f06-abcf-78f164790ac0}</UniqueIdentifier>
     </Filter>
@@ -260,9 +257,6 @@
     </ClCompile>
     <ClCompile Include="Physics\Tilemap.cpp">
       <Filter>Source Files\Physics</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Lib\simdjson\simdjson.cpp">
-      <Filter>Lib\simdjson</Filter>
     </ClCompile>
     <ClCompile Include="Resources\Scene.cpp">
       <Filter>Source Files\Resources</Filter>

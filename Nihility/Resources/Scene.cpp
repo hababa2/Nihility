@@ -6,8 +6,6 @@
 #include "Rendering/Renderer.hpp"
 #include "Rendering/UI.hpp"
 
-#include "simdjson/simdjson.h"
-
 #include "Rendering/VulkanInclude.hpp"
 #include "vma/vk_mem_alloc.h"
 

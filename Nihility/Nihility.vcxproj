@@ -58,7 +58,7 @@
       <PreprocessorDefinitions>NH_EXPORT;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -76,7 +76,7 @@
       <PreprocessorDefinitions>NH_EXPORT;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Nihility;$(SolutionDir)Assets;$(SolutionDir)Lib;$(SolutionDir)Lib/slang;%VULKAN_SDK%/include;%VULKAN_SDK%/Source</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -152,7 +152,6 @@
     <ClCompile Include="..\Lib\msdfgen\core\sdf-error-estimation.cpp" />
     <ClCompile Include="..\Lib\msdfgen\core\shape-description.cpp" />
     <ClCompile Include="..\Lib\msdfgen\core\Shape.cpp" />
-    <ClCompile Include="..\Lib\simdjson\simdjson.cpp" />
     <ClCompile Include="..\Lib\stb\stb_vorbis.c" />
     <ClCompile Include="Components\Registry.cpp" />
     <ClCompile Include="Core\DataReader.cpp" />
