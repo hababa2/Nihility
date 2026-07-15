@@ -27,23 +27,18 @@ void Editor::Initialize()
 {
 	Logger::Trace("Initializing Level Editor...");
 
-	Entity editorBg = UI::CreatePanel({ 0.0f, 0.0f }, { 0.0f, 0.0f }, { 0.15f, 0.15f, 0.15f, 1.0f });
-	editorBg.AddComponent<UIFillParent>();
+	Entity editorBg = UI::CreatePanel({ {}, { 100_vw, 100_vh } }, { 0.15f, 0.15f, 0.15f, 1.0f });
 
-	viewportPanel = UI::CreatePanel({ 0.0f, 0.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.2f, 0.01f }, editorBg);
+	viewportPanel = UI::CreatePanel({ { 0_px, 0_px }, { 90_vw, 60_vh }, { 0.0f, 0.0f }, 10_px, 0_px, 0_px, 150_px }, { 1.0f, 1.0f, 1.0f, 1.0f }, editorBg);
 	viewportPanel.AddComponent<UIResizable>();
-	UIProportionalSize& prop0 = viewportPanel.AddComponent<UIProportionalSize>();
-	prop0.proportions = { 0.7f, 0.6f };
 
 	Registry::GetComponent<UIPanel>(viewportPanel.Id()).textureId = Renderer::viewportTarget.Id();
 
-	Entity toolbar = UI::CreatePanel({ 0.0f, 0.0f }, { 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f, 1.0f }, { 0.0f, 0.0f }, editorBg);
-	UIProportionalSize& prop1 = toolbar.AddComponent<UIProportionalSize>();
-	prop1.proportions = { 0.2f, 1.0f };
+	Entity toolbar = UI::CreatePanel({ {}, { 150_px, 100_vw } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
 
 	F32 currentY = 10.0f;
 	auto CreateToolButton = [&](const String& name, EditorTool tool) {
-		Entity btn = UI::CreateButton(name, { 5.0f, currentY }, { 100.0f, 40.0f }, { 0.0f, 0.0f }, toolbar);
+		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, toolbar);
 		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
 
 		interact.OnClick = [tool]() {
@@ -59,7 +54,7 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 	auto CreateLayerButton = [&](const String& name, TileLayer layer) {
-		Entity btn = UI::CreateButton(name, { 5.0f, currentY }, { 120.0f, 40.0f }, { 0.0f, 0.0f }, toolbar);
+		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, toolbar);
 		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
 
 		interact.OnClick = [layer]() {
@@ -76,14 +71,14 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 
-	Entity saveBtn = UI::CreateButton("Save", { 5.0f, currentY }, { 100.0f, 40.0f }, { 0.0f, 0.0f }, toolbar);
+	Entity saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", toolbar);
 	Registry::GetComponent<UIInteractable>(saveBtn.Id()).OnClick = []() {
 		Tilemap::Save("level_01.lvl");
 	};
 
 	currentY += 50.0f;
 
-	Entity loadBtn = UI::CreateButton("Load", { 5.0f, currentY }, { 100.0f, 40.0f }, { 0.0f, 0.0f }, toolbar);
+	Entity loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", toolbar);
 	Registry::GetComponent<UIInteractable>(loadBtn.Id()).OnClick = []() {
 		Tilemap::Load("level_01.lvl");
 	};
@@ -109,15 +104,14 @@ void Editor::Initialize()
 
 void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 {
-	Entity paletteBody = UI::CreateWindow("Tile Palette", { 600.0f, 60.0f }, { 300.0f, 300.0f }, true);
+	Entity paletteBody = UI::CreateWindow({ { 10_vw, 10_vw }, { 300.0f, 200.0f } }, "Tile Palette", true);
 
-	ScrollAreaEntities scroll = UI::CreateScrollArea({ 0.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f }, paletteBody);
-	scroll.viewport.AddComponent<UIFillParent>();
+	ScrollAreaEntities scroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, paletteBody);
 
 	constexpr F32 TileDisplaySize = 64.0f;
 	constexpr F32 Padding = 10.0f;
 
-	selectionHighlight = UI::CreatePanel({ -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f }, { 1.0f, 0.8f, 0.2f, 1.0f }, { 0.0f, 0.0f }, scroll.content);
+	selectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, scroll.content);
 
 	F32 currentX = Padding;
 	F32 currentY = Padding;
@@ -126,7 +120,7 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 
 	for (U32 texID : loadedTextureIds)
 	{
-		Entity tileBtn = UI::CreatePanel({ currentX, currentY }, { TileDisplaySize, TileDisplaySize }, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }, scroll.content);
+		Entity tileBtn = UI::CreatePanel({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, { 1.0f, 1.0f, 1.0f, 1.0f }, scroll.content);
 		Registry::GetComponent<UIPanel>(tileBtn.Id()).textureId = texID;
 
 		UIInteractable& interact = tileBtn.AddComponent<UIInteractable>();
@@ -144,7 +138,7 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 			activeTool = EditorTool::Brush;
 
 			UIRect& highlightRect = Registry::GetComponent<UIRect>(selectionHighlight.Id());
-			highlightRect.position = { currentX - 2.0f, currentY - 2.0f };
+			highlightRect.pos = { currentX - 2.0f, currentY - 2.0f };
 		};
 
 		currentX += TileDisplaySize + Padding;
@@ -184,13 +178,14 @@ void Editor::Update()
 
 	if (Input::ButtonDown(ButtonCode::LeftMouse))
 	{
-		glm::vec2 uiMouse = UI::GetVirtualMousePosition();
+		glm::vec2 uiMouse = Input::MousePosition();
 		UIRect& vpRect = Registry::GetComponent<UIRect>(viewportPanel.Id());
-		glm::vec2 vpPos = UI::GetAbsoluteUIPosition(viewportPanel.Id());
+		glm::vec2 vpPos = vpRect.resolvedPos;
+		glm::vec2 vpSize = vpRect.resolvedSize;
 		glm::vec4 area = Renderer::RenderArea();
 
-		if (uiMouse.x >= vpPos.x + area.x && uiMouse.x <= vpPos.x + vpRect.size.x - area.x &&
-			uiMouse.y >= vpPos.y + area.y && uiMouse.y <= vpPos.y + vpRect.size.y - area.y)
+		if (uiMouse.x >= vpPos.x + area.x && uiMouse.x <= vpPos.x + vpSize.x - area.x &&
+			uiMouse.y >= vpPos.y + area.y && uiMouse.y <= vpPos.y + vpSize.y - area.y)
 		{
 			glm::vec4 area = Renderer::RenderArea();
 			glm::vec2 localViewportMouse = uiMouse - vpPos - glm::vec2{ area.x, area.y } - glm::vec2{ area.z, area.w } / 2.0f;

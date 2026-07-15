@@ -27,11 +27,100 @@ enum class UIDrawType
 	Text
 };
 
+enum class UIUnit : U8
+{
+	Pixel,			// Absolute physical pixels
+	Percent,		// 1 percent of the parent's matching axis
+	ParentWidth,	// 1 percent of the parent's width
+	ParentHeight,	// 1 percent of the parent's height
+	ParentMin,		// 1 percent of the parent's smaller dimension
+	ParentMax,		// 1 percent of the parent's larger dimension
+	ViewportWidth,	// 1 percent of the OS window's width
+	ViewportHeight,	// 1 percent of the OS window's height
+	ViewportMin,	// 1 percent of the OS window's smaller dimension
+	ViewportMax,	// 1 percent of the OS window's larger dimension
+	Inch,			// Physical screen inches
+	Centimeters,	// Physical screen centimeters
+	Millimeters,	// Physical screen millimeters
+	Em,				// Relative to the parent element's font size
+	Rem,			// Relative to the root OS window's font size
+};
+
+struct UIValue
+{
+	constexpr UIValue() : value(0.0f), unit(UIUnit::Pixel) {}
+	constexpr UIValue(F32 value) : value(value), unit(UIUnit::Pixel) {}
+	constexpr UIValue(F32 value, UIUnit unit) : value(value), unit(unit) {}
+
+	F32 value = 0.0f;
+	UIUnit unit = UIUnit::Pixel;
+};
+
+constexpr UIValue operator"" _px(LF64 value) { return { (F32)value, UIUnit::Pixel }; } // Absolute physical pixels
+constexpr UIValue operator"" _per(LF64 value) { return { (F32)value, UIUnit::Percent }; } // 1 percent of the parent's matching axis
+constexpr UIValue operator"" _pw(LF64 value) { return { (F32)value, UIUnit::ParentWidth }; } // 1 percent of the parent's width
+constexpr UIValue operator"" _ph(LF64 value) { return { (F32)value, UIUnit::ParentHeight }; } // 1 percent of the parent's height
+constexpr UIValue operator"" _pmin(LF64 value) { return { (F32)value, UIUnit::ParentMin }; } // 1 percent of the parent's smaller dimension
+constexpr UIValue operator"" _pmax(LF64 value) { return { (F32)value, UIUnit::ParentMax }; } // 1 percent of the parent's larger dimension
+constexpr UIValue operator"" _vw(LF64 value) { return { (F32)value, UIUnit::ViewportWidth }; } // 1 percent of the OS window's width
+constexpr UIValue operator"" _vh(LF64 value) { return { (F32)value, UIUnit::ViewportHeight }; } // 1 percent of the OS window's height
+constexpr UIValue operator"" _vmin(LF64 value) { return { (F32)value, UIUnit::ViewportMin }; } // 1 percent of the OS window's smaller dimension
+constexpr UIValue operator"" _vmax(LF64 value) { return { (F32)value, UIUnit::ViewportMax }; } // 1 percent of the OS window's larger dimension
+constexpr UIValue operator"" _in(LF64 value) { return { (F32)value, UIUnit::Inch }; } // Physical screen inches
+constexpr UIValue operator"" _cm(LF64 value) { return { (F32)value, UIUnit::Centimeters }; } // Physical screen centimeters
+constexpr UIValue operator"" _mm(LF64 value) { return { (F32)value, UIUnit::Millimeters }; } // Physical screen millimeters
+constexpr UIValue operator"" _em(LF64 value) { return { (F32)value, UIUnit::Em }; } // Relative to the parent element's font size
+constexpr UIValue operator"" _rem(LF64 value) { return { (F32)value, UIUnit::Rem }; } // Relative to the root OS window's font size
+
+constexpr UIValue operator"" _px(U64 value) { return { (F32)value, UIUnit::Pixel }; } // Absolute physical pixels
+constexpr UIValue operator"" _per(U64 value) { return { (F32)value, UIUnit::Percent }; } // 1 percent of the parent's matching axis
+constexpr UIValue operator"" _pw(U64 value) { return { (F32)value, UIUnit::ParentWidth }; } // 1 percent of the parent's width
+constexpr UIValue operator"" _ph(U64 value) { return { (F32)value, UIUnit::ParentHeight }; } // 1 percent of the parent's height
+constexpr UIValue operator"" _pmin(U64 value) { return { (F32)value, UIUnit::ParentMin }; } // 1 percent of the parent's smaller dimension
+constexpr UIValue operator"" _pmax(U64 value) { return { (F32)value, UIUnit::ParentMax }; } // 1 percent of the parent's larger dimension
+constexpr UIValue operator"" _vw(U64 value) { return { (F32)value, UIUnit::ViewportWidth }; } // 1 percent of the OS window's width
+constexpr UIValue operator"" _vh(U64 value) { return { (F32)value, UIUnit::ViewportHeight }; } // 1 percent of the OS window's height
+constexpr UIValue operator"" _vmin(U64 value) { return { (F32)value, UIUnit::ViewportMin }; } // 1 percent of the OS window's smaller dimension
+constexpr UIValue operator"" _vmax(U64 value) { return { (F32)value, UIUnit::ViewportMax }; } // 1 percent of the OS window's larger dimension
+constexpr UIValue operator"" _in(U64 value) { return { (F32)value, UIUnit::Inch }; } // Physical screen inches
+constexpr UIValue operator"" _cm(U64 value) { return { (F32)value, UIUnit::Centimeters }; } // Physical screen centimeters
+constexpr UIValue operator"" _mm(U64 value) { return { (F32)value, UIUnit::Millimeters }; } // Physical screen millimeters
+constexpr UIValue operator"" _em(U64 value) { return { (F32)value, UIUnit::Em }; } // Relative to the parent element's font size
+constexpr UIValue operator"" _rem(U64 value) { return { (F32)value, UIUnit::Rem }; } // Relative to the root OS window's font size
+
+struct NH_API UIVector
+{
+	UIValue x = 0_px;
+	UIValue y = 0_px;
+};
+
+struct NH_API UIRectDef
+{
+	UIVector pos = { 0_px, 0_px };
+	UIVector size = { 100_px, 100_px };
+	glm::vec2 anchor{ 0.0f, 0.0f };
+
+	UIValue marginTop = 0_px;
+	UIValue marginRight = 0_px;
+	UIValue marginBottom = 0_px;
+	UIValue marginLeft = 0_px;
+};
+
 struct NH_API UIRect
 {
-	glm::vec2 position{ 0.0f, 0.0f };
-	glm::vec2 size{ 100.0f, 100.0f };
+	UIVector pos = { 0_px, 0_px };
+	UIVector size = { 100_px, 100_px };
+
+	UIValue marginTop = 0_px;
+	UIValue marginRight = 0_px;
+	UIValue marginBottom = 0_px;
+	UIValue marginLeft = 0_px;
+
 	glm::vec2 anchor{ 0.0f, 0.0f };
+
+	glm::vec2 resolvedPos = { 0.0f, 0.0f };
+	glm::vec2 resolvedSize = { 0.0f, 0.0f };
+
 	U32 zIndex = 0;
 };
 
@@ -57,6 +146,8 @@ struct NH_API UIInteractable
 	Function<void()> OnHoverEnter = nullptr;
 	Function<void()> OnHoverExit = nullptr;
 };
+
+struct NH_API UIIgnoreHitTest {};
 
 struct NH_API UIWindow
 {
@@ -96,25 +187,23 @@ struct NH_API ScrollAreaEntities
 
 struct NH_API UIClipMask {};
 
-struct NH_API UIFillParent
-{
-	F32 padding = 0.0f;
-};
-
-struct NH_API UIProportionalSize
-{
-	glm::vec2 proportions{ 1.0f, 1.0f };
-};
-
 struct NH_API UIText
 {
 	String text;
 	std::shared_ptr<Font> font;
 	glm::vec4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
-	F32 fontSize = 24.0f;
+	TextAlignment alignment = TextAlignment::Left;
 	F32 boldness = 0.5f;
 
-	TextAlignment alignment = TextAlignment::Left;
+	UIValue fontSize = 1_rem;
+
+	F32 resolvedFontSize = 16.0f;
+
+	bool wrapText = false;
+	bool autoFit = false;
+	F32 minAutoFitSize = 8.0f;
+
+	String wrappedText;
 };
 
 struct NH_API UITextInput
@@ -169,19 +258,16 @@ struct VkCommandBuffer_T;
 class NH_API UI
 {
 public:
-	static Entity CreateContainer(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreatePanel(glm::vec2 localPos, glm::vec2 size, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateText(const String& text, glm::vec2 localPos, F32 fontSize, glm::vec4 color, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateTextInput(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateButton(const String& text, glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
-	static Entity CreateWindow(const String& title, glm::vec2 pos, glm::vec2 size, bool resizable = false);
-	static ScrollAreaEntities CreateScrollArea(glm::vec2 localPos, glm::vec2 size, glm::vec2 anchor = { 0.0f, 0.0f }, Entity parent = {});
+	static Entity CreateContainer(const UIRectDef& def, Entity parent = {});
+	static Entity CreatePanel(const UIRectDef& def, glm::vec4 color, Entity parent = {});
+	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, glm::vec4 color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
+	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {});
+	static Entity CreateButton(const UIRectDef& def, const String& text, Entity parent = {});
+	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false);
+	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {});
 
 	static glm::vec2 GetAbsoluteUIPosition(U32 entityId);
 	static Scissor GetAbsoluteScissor(U32 entityId);
-
-	static glm::vec2 GetVirtualMousePosition();
-	static glm::vec2 GetVirtualMouseDelta();
 
 	static std::shared_ptr<Font> GetFont();
 
@@ -190,6 +276,7 @@ private:
 	static void Shutdown();
 	static void Update();
 
+	static void ResolveUnits();
 	static void UpdateInput();
 	static void UpdateLayouts();
 	static void UpdateVisuals();
@@ -205,7 +292,12 @@ private:
 	static F32 GetTextWidth(const UIText& textComp);
 	static F32 GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex);
 	static U32 CalculateCursorIndexFromMouse(const UIText& textComp, F32 localMouseX);
+	static F32 MeasureTextWidth(std::shared_ptr<Font> font, const String& text, F32 fontSize);
+	static String CalculateWrappedText(std::shared_ptr<Font> font, const String& text, F32 fontSize, F32 maxWidth);
 	static void BringWindowToFront(U32 windowId);
+	static glm::vec2 GetParentSize(U32 id);
+	static F32 ResolveUIValue(const UIValue& val, F32 parentAxis, glm::vec2 parentSize, glm::vec2 viewportSize, F32 dpi, F32 parentFontSize);
+	static void SetUIValueFromPixels(UIValue& val, F32 targetPixels, F32 parentAxis, glm::vec2 parentSize, glm::vec2 viewportSize, F32 dpi, F32 parentFontSize);
 
 	static void Render(VkCommandBuffer_T* cmd);
 
@@ -214,6 +306,7 @@ private:
 	static constexpr U32 MaxPanels = 1000;
 	static constexpr U32 MaxCharacters = 1000;
 	static constexpr F32 WindowBorderWidth = 2.0f;
+	static constexpr F32 RootFontSize = 16.0f;
 
 	static U32 currentGlobalZ;
 

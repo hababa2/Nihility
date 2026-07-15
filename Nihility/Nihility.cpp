@@ -101,7 +101,7 @@ void Nihility::Initialize(const WStringView& applicationName)
 
 	if (!Registry::CompileComponentGraph()) { return; }
 
-	Entity FPSEntity = UI::CreateText("0", { 0.0f, 0.0f }, 25.0f, { 0.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 0.0f });
+	Entity FPSEntity = UI::CreateText({ {}, {}, { 1.0f, 0.0f } }, "0", 25.0f, false, false, { 0.0f, 1.0f, 0.0f, 1.0f });
 	UIText& FPS = FPSEntity.GetComponent<UIText>();
 
 	while (Platform::running)

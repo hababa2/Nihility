@@ -311,8 +311,8 @@ void Renderer::EndFrame()
 #ifdef NH_DEBUG
 	UIRect& rect = Registry::GetComponent<UIRect>(Editor::viewportPanel.Id());
 
-	U32 width = glm::max(1u, (U32)rect.size.x);
-	U32 height = glm::max(1u, (U32)rect.size.y);
+	U32 width = glm::max(1u, (U32)rect.resolvedSize.x);
+	U32 height = glm::max(1u, (U32)rect.resolvedSize.y);
 
 	if (width != viewportTarget.Width() || height != viewportTarget.Height())
 	{
@@ -1101,8 +1101,8 @@ glm::vec4 Renderer::RenderArea()
 #ifdef NH_DEBUG
 	UIRect& vpRect = Registry::GetComponent<UIRect>(Editor::viewportPanel.Id());
 
-	F32 width = vpRect.size.x;
-	F32 height = vpRect.size.y;
+	F32 width = vpRect.resolvedSize.x;
+	F32 height = vpRect.resolvedSize.y;
 #else
 	F32 width = (F32)surfaceWidth;
 	F32 height = (F32)surfaceHeight;

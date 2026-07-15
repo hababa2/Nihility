@@ -2,6 +2,8 @@
 Bin/
 log.txt
 
+*.[lL][vV][lL]
+
 # Unimported Assets
 *.[bB][mM][pP]
 *.[tT][gG][aA]

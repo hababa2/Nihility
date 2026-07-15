@@ -98,6 +98,7 @@ typedef signed long long I64;	//Signed 64-bit integer
 
 typedef float F32;				//32-bit floating point number
 typedef double F64;				//64-bit floating point number
+typedef long double LF64;		//64-bit floating point number on window, 80 or 128-bit on other platforms
 
 typedef char C;					//8-bit ascii character
 typedef char8_t C8;				//8-bit ascii character
