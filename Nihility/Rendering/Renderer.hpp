@@ -11,6 +11,7 @@
 #include "Buffer.hpp"
 
 #include "Core/Containers.hpp"
+#include "Core/Function.hpp"
 #include "Resources/Texture.hpp"
 #include "Components/Registry.hpp"
 
@@ -144,7 +145,6 @@ private:
 	static void Shutdown();
 
 	static bool BeginFrame();
-	static void RenderTilemaps(VkCommandBuffer_T* cmd);
 	static void EndFrame();
 
 	static bool InitializeVma();
@@ -155,11 +155,10 @@ private:
 	static bool CreateSynchronization();
 	static bool CreateCommandBuffers();
 
-	static void DestroyObjects();
-	static void ScheduleDestruction(Swapchain& swapchain);
-	static void ScheduleDestruction(Buffer& buffer);
-
 	static void DestroyTexture(Texture& texture);
+
+	static void DeferDestruction(Function<void()>&& function);
+	static void FlushDeletionQueue();
 
 	static void RecreateSwapchain();
 	static void TransitionImageLayout(VkCommandBuffer_T* cmd, VkImage_T* image, VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -173,7 +172,6 @@ private:
 	static Device device;
 	static Swapchain swapchain;
 	static Shader spriteShader;
-	static Shader tilemapShader;
 
 	static VkDescriptorSetLayout_T* globalBindlessSetLayout;
 	static VkDescriptorPool_T* globalDescriptorPool;
@@ -209,8 +207,8 @@ private:
 	static VmaAllocator_T* vmaAllocator;
 	static VkAllocationCallbacks* allocationCallbacks;
 
-	static Vector<SwapchainDestructionData> swapchainsToDestroy;
-	static Vector<BufferDestructionData> buffersToDestroy;
+	static Vector<Function<void()>> pendingDeletions;
+	static Vector<Function<void()>> deletionQueues[MaxFramesInFlight];
 
 #ifdef NH_DEBUG
 	static RenderTarget viewportTarget;

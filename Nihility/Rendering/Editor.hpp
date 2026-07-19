@@ -27,11 +27,15 @@ private:
 	static void RenderGrid(VkCommandBuffer_T* cmd);
 
 	static Entity viewportPanel;
-	static Entity selectionHighlight;
+	static Entity tileSelectionHighlight;
+	static Entity collisionSelectionHighlight;
+	static Entity visualPaletteRoot;
+	static Entity collisionPaletteRoot;
 
 	static EditorTool activeTool;
 	static TileLayer activeLayer;
 	static U32 selectedTextureId;
+	static CollisionType activeCollisionType;
 	
 	static Entity cameraEntity;
 

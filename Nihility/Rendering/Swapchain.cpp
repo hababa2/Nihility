@@ -76,7 +76,18 @@ bool Swapchain::Create()
 
 void Swapchain::Recreate()
 {
-	Renderer::ScheduleDestruction(*this);
+	if (vkSwapchain)
+	{
+		for (VkImageView view : imageViews)
+		{
+			vkDestroyImageView(Renderer::device, view, Renderer::allocationCallbacks);
+		}
+
+		vkDestroySwapchainKHR(Renderer::device, vkSwapchain, Renderer::allocationCallbacks);
+
+		vkSwapchain = nullptr;
+	}
+
 	Create();
 }
 

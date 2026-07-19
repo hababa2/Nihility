@@ -77,7 +77,6 @@ Instance Renderer::instance;
 Device Renderer::device;
 Swapchain Renderer::swapchain;
 Shader Renderer::spriteShader;
-Shader Renderer::tilemapShader;
 
 VkDescriptorSetLayout Renderer::globalBindlessSetLayout;
 VkDescriptorPool Renderer::globalDescriptorPool;
@@ -113,8 +112,8 @@ RenderExtractor Renderer::extractor;
 VmaAllocator Renderer::vmaAllocator;
 VkAllocationCallbacks* Renderer::allocationCallbacks;
 
-Vector<SwapchainDestructionData> Renderer::swapchainsToDestroy;
-Vector<BufferDestructionData> Renderer::buffersToDestroy;
+Vector<Function<void()>> Renderer::pendingDeletions;
+Vector<Function<void()>> Renderer::deletionQueues[MaxFramesInFlight];
 
 #ifdef NH_DEBUG
 RenderTarget Renderer::viewportTarget;
@@ -164,7 +163,14 @@ void Renderer::Shutdown()
 		vkDestroyCommandPool(device, primaryPools[i], allocationCallbacks);
 	}
 
-	DestroyObjects();
+	for (auto& func : pendingDeletions) { func(); }
+	pendingDeletions.clear();
+
+	for (U32 i = 0; i < MaxFramesInFlight; ++i)
+	{
+		for (auto& func : deletionQueues[i]) { func(); }
+		deletionQueues[i].clear();
+	}
 
 #ifdef NH_DEBUG
 	viewportTarget.Destroy();
@@ -191,7 +197,6 @@ void Renderer::Shutdown()
 	}
 
 	spriteShader.Destroy();
-	tilemapShader.Destroy();
 
 	vkDestroyDescriptorPool(device, globalDescriptorPool, allocationCallbacks);
 	vkDestroyDescriptorSetLayout(device, globalBindlessSetLayout, allocationCallbacks);
@@ -236,7 +241,7 @@ bool Renderer::BeginFrame()
 		vkWaitSemaphores(device, &waitInfo, UINT64_MAX);
 	}
 
-	DestroyObjects();
+	FlushDeletionQueue();
 
 	VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquiredSemaphores[frameIndex], nullptr, &imageIndex);
 
@@ -264,35 +269,6 @@ bool Renderer::BeginFrame()
 	extractor.BeginExtraction();
 
 	return true;
-}
-
-void Renderer::RenderTilemaps(VkCommandBuffer cmd)
-{
-	glm::mat4 viewProj = GetViewProjectionMatrix();
-
-	auto view = Registry::View<TilemapRenderData>();
-
-	if (view.Size())
-	{
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tilemapShader.vkPipeline);
-
-		VkDescriptorSet sets[] = { globalBindlessSet };
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tilemapShader.vkPipelineLayout, 0, CountOf32(sets), sets, 0, nullptr);
-
-		vkCmdPushConstants(cmd, tilemapShader.vkPipelineLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(glm::mat4), &viewProj);
-	}
-
-	for (U32 i = 0; i < view.Size(); ++i)
-	{
-		U32 id = view.GetEntity(i);
-		auto [renderData] = view.Get(id);
-
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(cmd, 0, 1, &renderData.vertexBuffer.vkBuffer, offsets);
-		vkCmdBindIndexBuffer(cmd, renderData.indexBuffer.vkBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		vkCmdDrawIndexed(cmd, renderData.indexCount, 1, 0, 0, 0);
-	}
 }
 
 void Renderer::EndFrame()
@@ -359,7 +335,7 @@ void Renderer::EndFrame()
 
 	vkCmdBeginRendering(primaryCmd, &renderingInfo);
 #endif
-	RenderTilemaps(primaryCmd);
+	Tilemap::RenderTilemaps(primaryCmd);
 
 	if (spriteCount > 0)
 	{
@@ -474,6 +450,12 @@ void Renderer::EndFrame()
 	}
 
 	VkValidateF(presentResult);
+
+	for (auto& func : pendingDeletions)
+	{
+		deletionQueues[frameIndex].push_back(Move(func));
+	}
+	pendingDeletions.clear();
 
 	++currentFrameNumber;
 }
@@ -620,7 +602,6 @@ bool Renderer::CreateDescriptorSet()
 bool Renderer::CreateShaders()
 {
 	spriteShader.Create("sprite.slang");
-	tilemapShader.Create("tilemap.slang");
 
 	return true;
 }
@@ -701,42 +682,17 @@ bool Renderer::CreateCommandBuffers()
 	return true;
 }
 
-void Renderer::DestroyObjects()
+void Renderer::DeferDestruction(Function<void()>&& function)
 {
-	//SWAPCHAINS
-	for (SwapchainDestructionData& data : swapchainsToDestroy)
-	{
-		for (VkImageView view : data.imageViews)
-		{
-			vkDestroyImageView(device, view, allocationCallbacks);
-		}
-
-		vkDestroySwapchainKHR(device, data.vkSwapchain, allocationCallbacks);
-	}
-
-	swapchainsToDestroy.clear();
-
-	//BUFFERS
-	for (BufferDestructionData& data : buffersToDestroy)
-	{
-		if (data.vkBuffer != nullptr)
-		{
-			vmaDestroyBuffer(vmaAllocator, data.vkBuffer, data.allocation);
-			data.vkBuffer = nullptr;
-		}
-	}
-
-	buffersToDestroy.clear();
+	pendingDeletions.push_back(Move(function));
 }
 
-void Renderer::ScheduleDestruction(Swapchain& swapchain)
+void Renderer::FlushDeletionQueue()
 {
-	swapchainsToDestroy.emplace_back(Move(swapchain.imageViews), swapchain.vkSwapchain);
-}
+	U32 frameIndex = FrameIndex();
+	for (auto& func : deletionQueues[frameIndex]) { func(); }
 
-void Renderer::ScheduleDestruction(Buffer& buffer)
-{
-	buffersToDestroy.emplace_back(buffer.vkBuffer, buffer.allocation);
+	deletionQueues[frameIndex].clear();
 }
 
 void Renderer::DestroyTexture(Texture& texture)
@@ -1034,7 +990,18 @@ Buffer Renderer::CreateBuffer(U64 size, U64 usage, VmaMemoryUsage memoryUsage)
 
 void Renderer::DestroyBuffer(Buffer& buffer)
 {
-	ScheduleDestruction(buffer);
+	if (buffer.vkBuffer == nullptr) { return; }
+
+	VkBuffer vkBuf = buffer.vkBuffer;
+	VmaAllocation alloc = buffer.allocation;
+
+	DeferDestruction([vkBuf, alloc]()
+	{
+		vmaDestroyBuffer(vmaAllocator, vkBuf, alloc);
+	});
+
+	buffer.vkBuffer = nullptr;
+	buffer.allocation = nullptr;
 }
 
 void Renderer::UploadToBuffer(Buffer& dstBuffer, const void* data, U64 size, U32 threadId)

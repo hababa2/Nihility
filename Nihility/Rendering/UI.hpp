@@ -121,6 +121,9 @@ struct NH_API UIRect
 	glm::vec2 resolvedPos = { 0.0f, 0.0f };
 	glm::vec2 resolvedSize = { 0.0f, 0.0f };
 
+	bool cascadedHidden = false;
+	bool cascadedHitTestInvisible = false;
+
 	U32 zIndex = 0;
 };
 
@@ -148,6 +151,8 @@ struct NH_API UIInteractable
 };
 
 struct NH_API UIIgnoreHitTest {};
+
+struct NH_API UIHidden {};
 
 struct NH_API UIWindow
 {
@@ -259,10 +264,10 @@ class NH_API UI
 {
 public:
 	static Entity CreateContainer(const UIRectDef& def, Entity parent = {});
-	static Entity CreatePanel(const UIRectDef& def, glm::vec4 color, Entity parent = {});
-	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, glm::vec4 color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
+	static Entity CreatePanel(const UIRectDef& def, const glm::vec4& color, Entity parent = {});
+	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, const glm::vec4& color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
 	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {});
-	static Entity CreateButton(const UIRectDef& def, const String& text, Entity parent = {});
+	static Entity CreateButton(const UIRectDef& def, const String& text, const glm::vec4& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
 	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false);
 	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {});
 

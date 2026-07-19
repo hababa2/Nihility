@@ -103,8 +103,11 @@ void UI::ResolveUnits()
 	glm::vec2 viewport = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
 	F32 dpi = (F32)Settings::Dpi();
 
-	auto ResolveEntityLayout = [&](auto& self, U32 id, glm::vec2 parentSize, F32 parentFontSize) -> void {
+	auto ResolveEntityLayout = [&](auto& self, U32 id, glm::vec2 parentSize, F32 parentFontSize, bool parentHidden, bool parentHitTestInvisible) -> void {
 		F32 currentFontSize = parentFontSize;
+
+		bool isHidden = parentHidden || Registry::HasComponent<UIHidden>(id);
+		bool isHitTestInvisible = parentHitTestInvisible || Registry::HasComponent<UIIgnoreHitTest>(id);
 
 		if (Registry::HasComponent<UIText>(id))
 		{
@@ -118,6 +121,9 @@ void UI::ResolveUnits()
 		if (Registry::HasComponent<UIRect>(id))
 		{
 			UIRect& rect = Registry::GetComponent<UIRect>(id);
+
+			rect.cascadedHidden = isHidden;
+			rect.cascadedHitTestInvisible = isHitTestInvisible;
 
 			F32 marginTop = ResolveUIValue(rect.marginTop, parentSize.x, parentSize, viewport, dpi, currentFontSize);
 			F32 marginRight = ResolveUIValue(rect.marginRight, parentSize.x, parentSize, viewport, dpi, currentFontSize);
@@ -168,7 +174,7 @@ void UI::ResolveUnits()
 		{
 			for (Entity child : Registry::GetComponent<UIHierarchy>(id).children)
 			{
-				self(self, child.Id(), parentSize, currentFontSize);
+				self(self, child.Id(), parentSize, currentFontSize, isHidden, isHitTestInvisible);
 			}
 		}
 	};
@@ -189,7 +195,7 @@ void UI::ResolveUnits()
 
 		if (isRoot)
 		{
-			ResolveEntityLayout(ResolveEntityLayout, id, viewport, RootFontSize);
+			ResolveEntityLayout(ResolveEntityLayout, id, viewport, RootFontSize, false, false);
 		}
 	}
 }
@@ -214,9 +220,10 @@ void UI::UpdateInput()
 
 	for (U32 id : hits)
 	{
-		if (Registry::HasComponent<UIIgnoreHitTest>(id)) { continue; }
-
 		auto [rect] = view.Get(id);
+
+		if (rect.cascadedHidden || rect.cascadedHitTestInvisible) { continue; }
+
 		glm::vec2 pos = GetAbsoluteUIPosition(id);
 		Scissor scissor = GetAbsoluteScissor(id);
 
@@ -822,11 +829,14 @@ void UI::UpdateVisuals()
 
 	for (U32 id : sortedIds)
 	{
+		UIRect& rect = Registry::GetComponent<UIRect>(id);
+
+		if (rect.cascadedHidden) { continue; }
+
 		Scissor clipRect = GetAbsoluteScissor(id);
 		if (clipRect.extent.x == 0 || clipRect.extent.y == 0) { continue; }
 
 		glm::vec2 absPos = GetAbsoluteUIPosition(id);
-		UIRect& rect = Registry::GetComponent<UIRect>(id);
 
 		if (Registry::HasComponent<UIPanel>(id))
 		{
@@ -1290,7 +1300,7 @@ Entity UI::CreateContainer(const UIRectDef& def, Entity parent)
 	return entity;
 }
 
-Entity UI::CreatePanel(const UIRectDef& def, glm::vec4 color, Entity parent)
+Entity UI::CreatePanel(const UIRectDef& def, const glm::vec4& color, Entity parent)
 {
 	Entity entity = CreateContainer(def, parent);
 
@@ -1300,7 +1310,7 @@ Entity UI::CreatePanel(const UIRectDef& def, glm::vec4 color, Entity parent)
 	return entity;
 }
 
-Entity UI::CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText, bool autoFit, glm::vec4 color, Entity parent)
+Entity UI::CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText, bool autoFit, const glm::vec4& color, Entity parent)
 {
 	Entity entity = CreateContainer(def, parent);
 
@@ -1336,9 +1346,9 @@ Entity UI::CreateTextInput(const UIRectDef& def, Entity parent)
 	return root;
 }
 
-Entity UI::CreateButton(const UIRectDef& def, const String& text, Entity parent)
+Entity UI::CreateButton(const UIRectDef& def, const String& text, const glm::vec4& color, Entity parent)
 {
-	Entity buttonEntity = CreatePanel(def, { 0.3f, 0.3f, 0.3f, 1.0f }, parent);
+	Entity buttonEntity = CreatePanel(def, color, parent);
 
 	UIInteractable& interactable = buttonEntity.AddComponent<UIInteractable>();
 
@@ -1349,8 +1359,8 @@ Entity UI::CreateButton(const UIRectDef& def, const String& text, Entity parent)
 		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = { 0.4f, 0.4f, 0.4f, 1.0f };
 	};
 
-	interactable.OnHoverExit = [buttonEntity]() {
-		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = { 0.3f, 0.3f, 0.3f, 1.0f };
+	interactable.OnHoverExit = [buttonEntity, color]() {
+		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = color;
 	};
 
 	return buttonEntity;

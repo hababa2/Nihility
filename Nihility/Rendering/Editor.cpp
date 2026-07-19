@@ -10,11 +10,15 @@
 #include "Core/Logger.hpp"
 
 Entity Editor::viewportPanel;
-Entity Editor::selectionHighlight;
+Entity Editor::tileSelectionHighlight;
+Entity Editor::collisionSelectionHighlight;
+Entity Editor::visualPaletteRoot;
+Entity Editor::collisionPaletteRoot;
 
 EditorTool Editor::activeTool = EditorTool::Brush;
-TileLayer Editor::activeLayer = TileLayer::Collision;
+TileLayer Editor::activeLayer = TileLayer::Midground;
 U32 Editor::selectedTextureId = U32_MAX;
+CollisionType Editor::activeCollisionType = CollisionType::Solid;
 
 Entity Editor::cameraEntity;
 
@@ -38,7 +42,7 @@ void Editor::Initialize()
 
 	F32 currentY = 10.0f;
 	auto CreateToolButton = [&](const String& name, EditorTool tool) {
-		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, toolbar);
+		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
 
 		interact.OnClick = [tool]() {
@@ -54,31 +58,45 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 	auto CreateLayerButton = [&](const String& name, TileLayer layer) {
-		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, toolbar);
+		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
 
 		interact.OnClick = [layer]() {
 			activeLayer = layer;
+
+			if (activeLayer == TileLayer::Collision)
+			{
+				if (!Registry::HasComponent<UIHidden>(visualPaletteRoot.Id())) { visualPaletteRoot.AddComponent<UIHidden>(); }
+				if (Registry::HasComponent<UIHidden>(collisionPaletteRoot.Id())) { Registry::RemoveComponent<UIHidden>(collisionPaletteRoot.Id()); }
+
+				Tilemap::showCollision = true;
+			}
+			else
+			{
+				if (!Registry::HasComponent<UIHidden>(collisionPaletteRoot.Id())) { collisionPaletteRoot.AddComponent<UIHidden>(); }
+				if (Registry::HasComponent<UIHidden>(visualPaletteRoot.Id())) { Registry::RemoveComponent<UIHidden>(visualPaletteRoot.Id()); }
+				
+				Tilemap::showCollision = false;
+			}
 		};
 		currentY += 50.0f;
 	};
 
 	CreateLayerButton("Background", TileLayer::Background);
 	CreateLayerButton("Midground", TileLayer::Midground);
-	CreateLayerButton("Collision", TileLayer::Collision);
 	CreateLayerButton("Foreground", TileLayer::Foreground);
-	CreateLayerButton("Logic", TileLayer::Logic);
+	CreateLayerButton("Collision", TileLayer::Collision);
 
 	currentY += 50.0f;
 
-	Entity saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", toolbar);
+	Entity saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 	Registry::GetComponent<UIInteractable>(saveBtn.Id()).OnClick = []() {
 		Tilemap::Save("level_01.lvl");
 	};
 
 	currentY += 50.0f;
 
-	Entity loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", toolbar);
+	Entity loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 	Registry::GetComponent<UIInteractable>(loadBtn.Id()).OnClick = []() {
 		Tilemap::Load("level_01.lvl");
 	};
@@ -106,12 +124,18 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 {
 	Entity paletteBody = UI::CreateWindow({ { 10_vw, 10_vw }, { 300.0f, 200.0f } }, "Tile Palette", true);
 
-	ScrollAreaEntities scroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, paletteBody);
+	visualPaletteRoot = UI::CreateContainer({ { 0_px, 0_px }, { 100_pw, 100_ph } }, paletteBody);
+	collisionPaletteRoot = UI::CreateContainer({ { 0_px, 0_px }, { 100_pw, 100_ph } }, paletteBody);
+	collisionPaletteRoot.AddComponent<UIHidden>();
+
+	ScrollAreaEntities visualScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, visualPaletteRoot);
+	ScrollAreaEntities collisionScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, collisionPaletteRoot);
 
 	constexpr F32 TileDisplaySize = 64.0f;
 	constexpr F32 Padding = 10.0f;
 
-	selectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, scroll.content);
+	tileSelectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, visualScroll.content);
+	collisionSelectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, collisionScroll.content);
 
 	F32 currentX = Padding;
 	F32 currentY = Padding;
@@ -120,7 +144,7 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 
 	for (U32 texID : loadedTextureIds)
 	{
-		Entity tileBtn = UI::CreatePanel({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, { 1.0f, 1.0f, 1.0f, 1.0f }, scroll.content);
+		Entity tileBtn = UI::CreatePanel({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, { 1.0f, 1.0f, 1.0f, 1.0f }, visualScroll.content);
 		Registry::GetComponent<UIPanel>(tileBtn.Id()).textureId = texID;
 
 		UIInteractable& interact = tileBtn.AddComponent<UIInteractable>();
@@ -137,7 +161,7 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 			selectedTextureId = texID;
 			activeTool = EditorTool::Brush;
 
-			UIRect& highlightRect = Registry::GetComponent<UIRect>(selectionHighlight.Id());
+			UIRect& highlightRect = Registry::GetComponent<UIRect>(tileSelectionHighlight.Id());
 			highlightRect.pos = { currentX - 2.0f, currentY - 2.0f };
 		};
 
@@ -149,12 +173,45 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 			currentY += TileDisplaySize + Padding;
 		}
 	}
+
+	currentX = Padding;
+	currentY = Padding;
+
+	auto CreateColButton = [&](Entity parent, CollisionType type, glm::vec4 color, const String& label) {
+
+		Entity collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content);
+		UIInteractable& interact = collisionBtn.GetComponent<UIInteractable>();
+
+		interact.OnClick = [type, currentX, currentY]() {
+			activeCollisionType = type;
+			activeTool = EditorTool::Brush;
+
+			UIRect& highlightRect = Registry::GetComponent<UIRect>(collisionSelectionHighlight.Id());
+			highlightRect.pos = { currentX - 2.0f, currentY - 2.0f };
+		};
+
+		currentX += TileDisplaySize + Padding;
+
+		if (currentX + TileDisplaySize > maxRowWidth)
+		{
+			currentX = Padding;
+			currentY += TileDisplaySize + Padding;
+		}
+	};
+
+	CreateColButton(collisionPaletteRoot, CollisionType::Solid, { 1.0f, 0.2f, 0.2f, 1.0f }, "Solid");
+	CreateColButton(collisionPaletteRoot, CollisionType::OneWay, { 0.2f, 1.0f, 0.2f, 1.0f }, "One-Way");
+	CreateColButton(collisionPaletteRoot, CollisionType::Climbable, { 0.0f, 1.0f, 1.0f, 1.0f }, "Climbable");
+	CreateColButton(collisionPaletteRoot, CollisionType::Fluid, { 0.2f, 0.5f, 1.0f, 1.0f }, "Fluid");
+	CreateColButton(collisionPaletteRoot, CollisionType::Slippery, { 0.9f, 0.9f, 1.0f, 1.0f }, "Slippery");
+	CreateColButton(collisionPaletteRoot, CollisionType::Hazard, { 1.0f, 0.6f, 0.0f, 1.0f }, "Hazard");
+	CreateColButton(collisionPaletteRoot, CollisionType::Trigger, { 0.8f, 0.2f, 1.0f, 1.0f }, "Trigger");
 }
 
 void Editor::Shutdown()
 {
 	Logger::Trace("Shutting Down Level Editor...");
-	
+
 	gridShader.Destroy();
 }
 
@@ -196,23 +253,26 @@ void Editor::Update()
 			I32 gridX = (I32)glm::floor(worldMouse.x / TileSize);
 			I32 gridY = (I32)glm::floor(worldMouse.y / TileSize);
 
+			U32* data = (activeLayer == TileLayer::Collision) ? (U32*)&activeCollisionType : &selectedTextureId;
+
 			if (Input::OnButtonDown(ButtonCode::LeftMouse))
 			{
 				if (activeTool == EditorTool::Select)
 				{
 					Tile& tile = Tilemap::GetTileAtGlobal(gridX, gridY, (U32)activeLayer, false);
-					if (tile.textureId != U32_MAX)
+					
+					if (tile.data != U32_MAX)
 					{
-						selectedTextureId = tile.textureId;
+						*data = tile.data;
 						activeTool = EditorTool::Brush;
 					}
 				}
-				else if (activeTool == EditorTool::Fill && selectedTextureId != U32_MAX)
+				else if (activeTool == EditorTool::Fill && *data != U32_MAX)
 				{
 					Tile& clickedTile = Tilemap::GetTileAtGlobal(gridX, gridY, (U32)activeLayer, false);
-					U32 targetTextureId = clickedTile.textureId;
+					U32 targetData = clickedTile.data;
 
-					if (targetTextureId == selectedTextureId) { return; }
+					if (targetData == *data) { return; }
 
 					Vector<glm::ivec2> queue;
 					queue.push_back({ gridX, gridY });
@@ -227,10 +287,10 @@ void Editor::Update()
 
 						Tile& currentTile = Tilemap::GetTileAtGlobal(curr.x, curr.y, (U32)activeLayer, false);
 
-						if (currentTile.textureId == targetTextureId)
+						if (currentTile.data == targetData)
 						{
 							Tile& writeTile = Tilemap::GetTileAtGlobal(curr.x, curr.y, (U32)activeLayer, true);
-							writeTile.textureId = selectedTextureId;
+							writeTile.data = *data;
 
 							queue.push_back({ curr.x + 1, curr.y });
 							queue.push_back({ curr.x - 1, curr.y });
@@ -244,15 +304,15 @@ void Editor::Update()
 			}
 			else if (Input::ButtonDown(ButtonCode::LeftMouse))
 			{
-				if (activeTool == EditorTool::Brush && selectedTextureId != U32_MAX)
+				if (activeTool == EditorTool::Brush && *data != U32_MAX)
 				{
 					Tile& tile = Tilemap::GetTileAtGlobal(gridX, gridY, (U32)activeLayer, true);
-					tile.textureId = selectedTextureId;
+					tile.data = *data;
 				}
 				else if (activeTool == EditorTool::Eraser)
 				{
 					Tile& tile = Tilemap::GetTileAtGlobal(gridX, gridY, (U32)activeLayer, true);
-					tile.textureId = U32_MAX;
+					tile.data = U32_MAX;
 				}
 			}
 		}

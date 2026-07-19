@@ -96,7 +96,7 @@ void Physics::Update()
 			I32 tileX = (I32)glm::floor(transform.position.x / TileSize);
 			I32 tileY = (I32)glm::floor(transform.position.y / TileSize);
 
-			if (Tilemap::GetTileCollision(tileX, tileY) == CollisionFlags::Hazard)
+			if (Tilemap::GetTileCollision(tileX, tileY) == (U32)CollisionType::Hazard)
 			{
 				if (Registry::GetSet<PlayerController>().Has(id))
 				{
