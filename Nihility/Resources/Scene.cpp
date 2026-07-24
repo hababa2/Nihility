@@ -14,11 +14,11 @@ Scene::~Scene()
 	Unload();
 }
 
-bool Scene::LoadLDtkLevel(const String& filepath, const String& levelIdentifier)
+bool Scene::LoadLevel(const String& filepath)
 {
-	Logger::Trace("Loading Scene: ", levelIdentifier);
+	Logger::Trace("Loading Level: ", filepath);
 
-	currentLevel = levelIdentifier;
+	currentLevel = filepath;
 
 	SpawnPlayer({ 0.0f, 0.0f });
 	SetupCamera();
@@ -78,21 +78,4 @@ void Scene::SetupCamera()
 	CameraTarget& target = cameraEntity.AddComponent<CameraTarget>();
 	target.targetEntity = playerEntity.Id();
 	target.smoothSpeed = 12.0f;
-}
-
-glm::vec2 Scene::ScreenToWorldSpace(glm::vec2 mousePos)
-{
-	glm::ivec4 viewportArea = Renderer::RenderArea();
-
-	F32 ndcX = std::clamp((mousePos.x - viewportArea.x) / viewportArea.z, 0.0f, 1.0f) * 2.0f - 1.0f;
-	F32 ndcY = std::clamp((mousePos.y - viewportArea.y) / viewportArea.w, 0.0f, 1.0f) * 2.0f - 1.0f;
-
-	F32 camHalfWidth = 640.0f;
-	F32 camHalfHeight = 360.0f;
-
-	glm::vec2 worldOffset(ndcX * camHalfWidth, ndcY * camHalfHeight);
-
-	glm::vec2 camPos = Registry::GetComponent<Transform2D>(cameraEntity.Id()).position;
-
-	return camPos + worldOffset;
 }

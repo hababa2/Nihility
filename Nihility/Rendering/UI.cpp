@@ -1300,7 +1300,7 @@ Entity UI::CreateContainer(const UIRectDef& def, Entity parent)
 	return entity;
 }
 
-Entity UI::CreatePanel(const UIRectDef& def, const glm::vec4& color, Entity parent)
+Entity UI::CreatePanel(const UIRectDef& def, const Color& color, Entity parent)
 {
 	Entity entity = CreateContainer(def, parent);
 
@@ -1310,7 +1310,7 @@ Entity UI::CreatePanel(const UIRectDef& def, const glm::vec4& color, Entity pare
 	return entity;
 }
 
-Entity UI::CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText, bool autoFit, const glm::vec4& color, Entity parent)
+Entity UI::CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText, bool autoFit, const Color& color, Entity parent)
 {
 	Entity entity = CreateContainer(def, parent);
 
@@ -1336,7 +1336,7 @@ Entity UI::CreateTextInput(const UIRectDef& def, Entity parent)
 	root.AddComponent<UIClipMask>();
 	UITextInput& inputComp = root.AddComponent<UITextInput>();
 
-	Entity textEntity = CreateText({ { 6_px, 10_ph }, def.size }, inputComp.hintText, 24.0f, false, false, { 0.3f, 0.3f, 0.3f, 1.0f }, root);
+	Entity textEntity = CreateText({ { 6_px, 10_ph }, def.size }, inputComp.hintText, 24.0_px, false, false, { 0.3f, 0.3f, 0.3f, 1.0f }, root);
 	textEntity.AddComponent<UIIgnoreHitTest>();
 	inputComp.textEntity = textEntity.Id();
 
@@ -1346,21 +1346,24 @@ Entity UI::CreateTextInput(const UIRectDef& def, Entity parent)
 	return root;
 }
 
-Entity UI::CreateButton(const UIRectDef& def, const String& text, const glm::vec4& color, Entity parent)
+Entity UI::CreateButton(const UIRectDef& def, const String& text, const Color& color, Entity parent)
 {
 	Entity buttonEntity = CreatePanel(def, color, parent);
 
 	UIInteractable& interactable = buttonEntity.AddComponent<UIInteractable>();
 
-	Entity textEntity = CreateText({ { 0_px, 10_ph }, def.size, { 0.5f, 0.0f } }, text, 24.0f, false, true, { 1.0f, 1.0f, 1.0f, 1.0f }, buttonEntity);
+	Entity textEntity = CreateText({ { 0_px, 10_ph }, def.size, { 0.5f, 0.0f } }, text, 24_px, false, true, color.GetContrastTextColor(), buttonEntity);
 	textEntity.AddComponent<UIIgnoreHitTest>();
 
-	interactable.OnHoverEnter = [buttonEntity]() {
-		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = { 0.4f, 0.4f, 0.4f, 1.0f };
+	interactable.OnHoverEnter = [buttonEntity, color, textEntity]() {
+		Color newColor = color.MultiplySaturation(0.7f).MultiplyValue(0.8f);
+		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = newColor;
+		Registry::GetComponent<UIText>(textEntity.Id()).color = newColor.GetContrastTextColor();
 	};
 
-	interactable.OnHoverExit = [buttonEntity, color]() {
+	interactable.OnHoverExit = [buttonEntity, color, textEntity]() {
 		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = color;
+		Registry::GetComponent<UIText>(textEntity.Id()).color = color.GetContrastTextColor();
 	};
 
 	return buttonEntity;
@@ -1374,7 +1377,7 @@ Entity UI::CreateWindow(const UIRectDef& def, const String& title, bool resizabl
 	if (resizable) { windowRoot.AddComponent<UIResizable>(); }
 	winComp.titleBarHeight = 24.0f;
 
-	Entity textEntity = CreateText({ { WindowBorderWidth, 0_px }, { 100_pw, winComp.titleBarHeight } }, title, 16.0f, false, false, { 0.8f, 0.8f, 0.8f, 1.0f }, windowRoot);
+	Entity textEntity = CreateText({ { WindowBorderWidth, 0_px }, { 100_pw, winComp.titleBarHeight } }, title, 16_px, false, false, { 0.8f, 0.8f, 0.8f, 1.0f }, windowRoot);
 	textEntity.AddComponent<UIIgnoreHitTest>();
 
 	Entity body = CreatePanel({ { 0_px, 0_px }, { 100_pw, 100_ph }, { 0.0f, 0.0f }, winComp.titleBarHeight, WindowBorderWidth, WindowBorderWidth, WindowBorderWidth }, { 0.2f, 0.2f, 0.2f, 1.0f }, windowRoot);

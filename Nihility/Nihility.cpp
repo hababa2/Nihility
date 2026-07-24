@@ -59,7 +59,7 @@ void InitGame()
 
 	sfxChannel = Audio::CreateChannel("sfx");
 
-	scene.LoadLDtkLevel("test_level.ldtk", "Level_0");
+	scene.LoadLevel("level_01.lvl");
 }
 
 void ShutdownGame()

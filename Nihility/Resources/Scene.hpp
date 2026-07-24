@@ -17,12 +17,10 @@ public:
 	Scene() = default;
 	~Scene();
 
-	bool LoadLDtkLevel(const String& filepath, const String& levelIdentifier);
+	bool LoadLevel(const String& filepath);
 	void Unload();
 
 	void Update();
-
-	glm::vec2 ScreenToWorldSpace(glm::vec2 mousePos);
 
 private:
 	void SpawnPlayer(glm::vec2 spawnPosition);

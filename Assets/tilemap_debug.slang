@@ -26,13 +26,13 @@ float3 GetCollisionColor(uint type)
 {
     switch (type)
     {
-    case 1: return float3(1.0, 0.2, 0.2); // Solid (Red)
-    case 2: return float3(0.2, 1.0, 0.2); // One-Way (Green)
-    case 3: return float3(0.0, 1.0, 1.0); // Climbable (Cyan)
-    case 4: return float3(0.2, 0.5, 1.0); // Fluid (Blue)
-    case 5: return float3(0.9, 0.9, 1.0); // Slippery (White/Ice)
-    case 6: return float3(1.0, 0.6, 0.0); // Hazard (Orange)
-    case 7: return float3(0.8, 0.2, 1.0); // Trigger (Purple)
+    case 1: return float3(0.0, 1.0, 0.0); // Solid (Green)
+    case 2: return float3(1.0, 1.0, 0.0); // One-Way (Yellow)
+    case 3: return float3(0.0, 0.0, 1.0); // Climbable (Blue)
+    case 4: return float3(0.0, 1.0, 1.0); // Fluid (Cyan)
+    case 5: return float3(1.0, 1.0, 1.0); // Slippery (White)
+    case 6: return float3(1.0, 0.0, 0.0); // Hazard (Red)
+    case 7: return float3(1.0, 0.0, 1.0); // Trigger (Magenta)
     default: return float3(1.0, 1.0, 1.0); // Fallback
     }
 }

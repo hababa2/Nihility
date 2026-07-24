@@ -177,7 +177,7 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 	currentX = Padding;
 	currentY = Padding;
 
-	auto CreateColButton = [&](Entity parent, CollisionType type, glm::vec4 color, const String& label) {
+	auto CreateColButton = [&](Entity parent, CollisionType type, const Color& color, const String& label) {
 
 		Entity collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content);
 		UIInteractable& interact = collisionBtn.GetComponent<UIInteractable>();
@@ -199,13 +199,13 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 		}
 	};
 
-	CreateColButton(collisionPaletteRoot, CollisionType::Solid, { 1.0f, 0.2f, 0.2f, 1.0f }, "Solid");
-	CreateColButton(collisionPaletteRoot, CollisionType::OneWay, { 0.2f, 1.0f, 0.2f, 1.0f }, "One-Way");
-	CreateColButton(collisionPaletteRoot, CollisionType::Climbable, { 0.0f, 1.0f, 1.0f, 1.0f }, "Climbable");
-	CreateColButton(collisionPaletteRoot, CollisionType::Fluid, { 0.2f, 0.5f, 1.0f, 1.0f }, "Fluid");
-	CreateColButton(collisionPaletteRoot, CollisionType::Slippery, { 0.9f, 0.9f, 1.0f, 1.0f }, "Slippery");
-	CreateColButton(collisionPaletteRoot, CollisionType::Hazard, { 1.0f, 0.6f, 0.0f, 1.0f }, "Hazard");
-	CreateColButton(collisionPaletteRoot, CollisionType::Trigger, { 0.8f, 0.2f, 1.0f, 1.0f }, "Trigger");
+	CreateColButton(collisionPaletteRoot, CollisionType::Solid, { 0.0f, 1.0f, 0.0f, 1.0f }, "Solid");
+	CreateColButton(collisionPaletteRoot, CollisionType::OneWay, { 1.0f, 1.0f, 0.0f, 1.0f }, "One-Way");
+	CreateColButton(collisionPaletteRoot, CollisionType::Climbable, { 0.0f, 0.0f, 1.0f, 1.0f }, "Climbable");
+	CreateColButton(collisionPaletteRoot, CollisionType::Fluid, { 0.0f, 1.0f, 1.0f, 1.0f }, "Fluid");
+	CreateColButton(collisionPaletteRoot, CollisionType::Slippery, { 1.0f, 1.0f, 1.0f, 1.0f }, "Slippery");
+	CreateColButton(collisionPaletteRoot, CollisionType::Hazard, { 1.0f, 0.0f, 0.0f, 1.0f }, "Hazard");
+	CreateColButton(collisionPaletteRoot, CollisionType::Trigger, { 1.0f, 0.0f, 1.0f, 1.0f }, "Trigger");
 }
 
 void Editor::Shutdown()

@@ -92,6 +92,7 @@
     <ClInclude Include="Containers\CircularQueue.hpp" />
     <ClInclude Include="Containers\Pool.hpp" />
     <ClInclude Include="Containers\SparseSet.hpp" />
+    <ClInclude Include="Core\Color.hpp" />
     <ClInclude Include="Core\Containers.hpp" />
     <ClInclude Include="Core\DataReader.hpp" />
     <ClInclude Include="Core\DataWriter.hpp" />

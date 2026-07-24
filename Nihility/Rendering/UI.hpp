@@ -4,6 +4,7 @@
 
 #include "Shader.hpp"
 #include "Buffer.hpp"
+#include "Core/Color.hpp"
 #include "Core/Function.hpp"
 #include "Core/Containers.hpp"
 #include "Components/Registry.hpp"
@@ -135,7 +136,7 @@ struct NH_API UIHierarchy
 
 struct NH_API UIPanel
 {
-	glm::vec4 color{ 0.2f, 0.2f, 0.2f, 1.0f };
+	Color color{ 0.2f, 0.2f, 0.2f, 1.0f };
 	U32 textureId = U32_MAX;
 	F32 cornerRadius = 0.0f;
 };
@@ -196,7 +197,7 @@ struct NH_API UIText
 {
 	String text;
 	std::shared_ptr<Font> font;
-	glm::vec4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
+	Color color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	TextAlignment alignment = TextAlignment::Left;
 	F32 boldness = 0.5f;
 
@@ -264,10 +265,10 @@ class NH_API UI
 {
 public:
 	static Entity CreateContainer(const UIRectDef& def, Entity parent = {});
-	static Entity CreatePanel(const UIRectDef& def, const glm::vec4& color, Entity parent = {});
-	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, const glm::vec4& color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
+	static Entity CreatePanel(const UIRectDef& def, const Color& color, Entity parent = {});
+	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, const Color& color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
 	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {});
-	static Entity CreateButton(const UIRectDef& def, const String& text, const glm::vec4& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
+	static Entity CreateButton(const UIRectDef& def, const String& text, const Color& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
 	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false);
 	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {});
 
