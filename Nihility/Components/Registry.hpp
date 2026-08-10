@@ -7,6 +7,27 @@
 
 #include <tuple>
 
+constexpr U64 HashTypeString(const char* str)
+{
+	U64 hash = 14695981039346656037ull;
+	while (*str)
+	{
+		hash ^= static_cast<U64>(*str++);
+		hash *= 1099511628211ull;
+	}
+	return hash;
+}
+
+template<typename T>
+constexpr U64 GetComponentHash()
+{
+#if defined(_MSC_VER)
+	return HashTypeString(__FUNCSIG__);
+#else
+	return HashTypeString(__PRETTY_FUNCTION__);
+#endif
+}
+
 struct NH_API Entity
 {
 public:
@@ -22,6 +43,7 @@ public:
 	Transform2D& Transform();
 
 	U32 Id() const { return id; }
+	bool Valid() const { return id != U32_MAX; }
 
 private:
 	U32 id = U32_MAX;
@@ -119,6 +141,8 @@ private:
 
 	static bool CompileComponentGraph();
 
+	static void* InternalGetOrCreateSet(U64 typeHash, void* (*Allocator)());
+
 	static Vector<Transform2D> transforms;
 	static Vector<U32> freeEntities;
 
@@ -178,16 +202,15 @@ inline void Registry::RemoveComponent(U32 id)
 template<typename Component>
 inline SparseSet<Component>& Registry::GetSet()
 {
-	static SparseSet<Component> set;
+	constexpr U64 hash = GetComponentHash<Component>();
 
-	static bool isRegistered = false;
-	if (!isRegistered)
-	{
-		componentPools.push_back(&set);
-		isRegistered = true;
-	}
+	auto Allocator = +[]() -> void* {
+		return new SparseSet<Component>();
+	};
 
-	return set;
+	void* setPtr = InternalGetOrCreateSet(hash, Allocator);
+
+	return *static_cast<SparseSet<Component>*>(setPtr);
 }
 
 template<typename Lead, typename... Others>

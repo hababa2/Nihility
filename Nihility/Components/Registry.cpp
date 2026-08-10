@@ -80,7 +80,7 @@ void UpdatePlayer()
 		auto [controller, body] = view.Get(id);
 
 		body.velocity.x = Input::GetAxis("Horizontal") * controller.moveSpeed;
-		
+
 		F32 gravity = 900.0f;
 
 		if (glm::abs(body.velocity.y) < 40.0f) { gravity *= 0.5f; }
@@ -164,6 +164,8 @@ Vector<ISparseSet*> Registry::componentPools;
 Vector<ComponentNode> Registry::registeredComponentUpdates;
 Vector<ComponentUpdateFn> Registry::executionOrder;
 
+static std::unordered_map<U64, void*> componentSetMap;
+
 bool Registry::Initialize()
 {
 	Logger::Trace("Initializing Component Registry...");
@@ -183,6 +185,13 @@ void Registry::Shutdown()
 {
 	Logger::Trace("Shutting Down Component Registry...");
 
+	for (auto* pool : componentPools)
+	{
+		delete pool;
+	}
+
+	componentPools.clear();
+	componentSetMap.clear();
 	transforms.clear();
 	freeEntities.clear();
 }
@@ -318,4 +327,20 @@ bool Registry::CompileComponentGraph()
 	}
 
 	return true;
+}
+
+void* Registry::InternalGetOrCreateSet(U64 typeHash, void* (*Allocator)())
+{
+	auto it = componentSetMap.find(typeHash);
+	if (it != componentSetMap.end())
+	{
+		return it->second;
+	}
+
+	void* newSet = Allocator();
+
+	componentSetMap[typeHash] = newSet;
+	componentPools.push_back((ISparseSet*)newSet);
+
+	return newSet;
 }

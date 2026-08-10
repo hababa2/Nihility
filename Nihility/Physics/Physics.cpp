@@ -90,7 +90,10 @@ void Physics::Update()
 
 			if (Tilemap::SweepY(transform, collider, body.velocity))
 			{
-				if (body.velocity.y <= 0.0f) { body.isGrounded = true; }
+				if (body.velocity.y <= 0.0f)
+				{
+					body.isGrounded = true;
+				}
 			}
 
 			I32 tileX = (I32)glm::floor(transform.position.x / TileSize);

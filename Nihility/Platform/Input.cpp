@@ -3,6 +3,7 @@
 #include "Platform.hpp"
 #include "Core/Time.hpp"
 #include "Core/Settings.hpp"
+#include "Rendering/Renderer.hpp"
 
 #ifdef NH_PLATFORM_WINDOWS
 
@@ -135,6 +136,13 @@ void Input::Update()
 
 	F32 newX = (F32)(p.x - (I32)Settings::WindowPositionX());
 	F32 newY = (F32)(p.y - (I32)Settings::WindowPositionY());
+
+#ifndef NH_DEBUG
+	glm::vec4 area = Renderer::RenderArea();
+
+	newX -= area.x;
+	newY -= area.y;
+#endif
 
 	deltaMousePosX = newX - mousePosX;
 	deltaMousePosY = newY - mousePosY;

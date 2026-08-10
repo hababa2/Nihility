@@ -16,7 +16,9 @@ struct VkCommandBuffer_T;
 class NH_API Editor
 {
 public:
-
+	static void Play();
+	static void Pause();
+	static void Stop();
 
 private:
 	static void Initialize();

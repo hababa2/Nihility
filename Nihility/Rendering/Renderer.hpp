@@ -133,6 +133,7 @@ public:
 
 	static void SubmitSprite(const SpriteData& sprite);
 
+	static void SetActiveCamera(Entity camera);
 	static glm::mat4 GetViewProjectionMatrix();
 	static glm::vec4 RenderArea();
 
@@ -209,6 +210,8 @@ private:
 
 	static Vector<Function<void()>> pendingDeletions;
 	static Vector<Function<void()>> deletionQueues[MaxFramesInFlight];
+
+	static Entity activeCamera;
 
 #ifdef NH_DEBUG
 	static RenderTarget viewportTarget;

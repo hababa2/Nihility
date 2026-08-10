@@ -26,55 +26,13 @@
 
 enki::TaskScheduler Nihility::scheduler;
 
-std::shared_ptr<Texture> sprites[4];
+GameInfo Nihility::info;
 
-std::shared_ptr<AudioClip> music;
-PlaybackHandle musicHandle;
-std::shared_ptr<AudioClip> sfx1;
-PlaybackHandle sfx1Handle;
-std::shared_ptr<AudioClip> sfx2;
-PlaybackHandle sfx2Handle;
-
-ChannelHandle sfxChannel;
-
-Scene scene{};
-
-void InitGame()
-{
-	sprites[0] = Resources::Load<Texture>(L"white");
-	sprites[1] = Resources::Load<Texture>(L"missing_texture");
-	sprites[2] = Resources::Load<Texture>(L"iconoclast");
-	sprites[3] = Resources::Load<Texture>(L"try");
-
-	music = Resources::Load<AudioClip>(L"Electric Zoo");
-	sfx1 = Resources::Load<AudioClip>(L"GMF...DAMN");
-	sfx2 = Resources::Load<AudioClip>(L"GMFD");
-
-	Input::BindAxis("Horizontal", ButtonCode::D, 1.0f);
-	Input::BindAxis("Horizontal", ButtonCode::A, -1.0f);
-	Input::BindAction("Jump", ButtonCode::Space);
-
-	Input::BindAxis("Horizontal", AxisCode::LeftJoystickX, 1.0f);
-	Input::BindAction("Jump", ButtonCode::GamepadA);
-
-	sfxChannel = Audio::CreateChannel("sfx");
-
-	scene.LoadLevel("level_01.lvl");
-}
-
-void ShutdownGame()
-{
-	scene.Unload();
-}
-
-void RunGame()
-{
-
-}
-
-void Nihility::Initialize(const WStringView& applicationName)
+void Nihility::Initialize(GameInfo& gameInfo)
 {
 	std::setlocale(LC_ALL, ".UTF8");
+
+	info = std::move(gameInfo);
 
 	scheduler.Initialize();
 	bool render = true;
@@ -84,9 +42,9 @@ void Nihility::Initialize(const WStringView& applicationName)
 	if (!FileIO::Initialize()) { return; }
 	if (!Settings::Initialize()) { return; }
 	if (!Input::Initialize()) { return; }
-	if (!Platform::Initialize(applicationName)) { return; }
+	if (!Platform::Initialize(info.applicationName)) { return; }
 	if (!Audio::Initialize()) { return; }
-	if (!Renderer::Initialize(ConvertView<C>(applicationName), MakeVersionNumber(0, 1, 0))) { return; }
+	if (!Renderer::Initialize(ConvertView<C>(info.applicationName), info.versionNumber)) { return; }
 	if (!Resources::Initialize()) { return; }
 	if (!Registry::Initialize()) { return; }
 	if (!UI::Initialize()) { return; }
@@ -94,9 +52,10 @@ void Nihility::Initialize(const WStringView& applicationName)
 	if (!Tilemap::Initialize()) { return; }
 
 #ifdef NH_DEBUG
+	SceneManager::state = EngineState::Editor;
 	Editor::Initialize();
 #else
-	InitGame();
+	info.InitializeGame();
 #endif
 
 	if (!Registry::CompileComponentGraph()) { return; }
@@ -130,9 +89,21 @@ void Nihility::Initialize(const WStringView& applicationName)
 		}
 
 #ifdef NH_DEBUG
-		Editor::Update();
+		if (SceneManager::state == EngineState::Editor)
+		{
+			Editor::Update();
+		}
+		else if (SceneManager::state == EngineState::Playing)
+		{
+			SceneManager::Update();
+		}
+		else if (SceneManager::state == EngineState::Paused)
+		{
+
+		}
 #else
-		RunGame();
+		info.RunGame();
+		SceneManager::Update();
 #endif
 		Registry::Update();
 		Audio::Update();
@@ -164,7 +135,7 @@ void Nihility::Shutdown()
 #ifdef NH_DEBUG
 	Editor::Shutdown();
 #else
-	ShutdownGame();
+	info.ShutdownGame();
 #endif
 
 	Tilemap::Shutdown();

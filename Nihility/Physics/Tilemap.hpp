@@ -106,7 +106,10 @@ public:
 	static bool SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2& velocity);
 
 	static void Save(const String& filepath);
+	static void SaveSync(const String& filepath);
 	static void Load(const String& filepath);
+
+	static void Unload();
 
 private:
 	static bool Initialize();

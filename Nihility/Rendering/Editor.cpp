@@ -6,6 +6,7 @@
 #include "Renderer.hpp"
 #include "VulkanInclude.hpp"
 
+#include "Resources/Scene.hpp"
 #include "Platform/Input.hpp"
 #include "Core/Logger.hpp"
 
@@ -42,10 +43,9 @@ void Editor::Initialize()
 
 	F32 currentY = 10.0f;
 	auto CreateToolButton = [&](const String& name, EditorTool tool) {
-		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
+		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 
-		interact.OnClick = [tool]() {
+		btn.interactable.OnClick = [tool]() {
 			activeTool = tool;
 		};
 		currentY += 50.0f;
@@ -58,10 +58,9 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 	auto CreateLayerButton = [&](const String& name, TileLayer layer) {
-		Entity btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-		UIInteractable& interact = Registry::GetComponent<UIInteractable>(btn.Id());
+		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
 
-		interact.OnClick = [layer]() {
+		btn.interactable.OnClick = [layer]() {
 			activeLayer = layer;
 
 			if (activeLayer == TileLayer::Collision)
@@ -89,15 +88,15 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 
-	Entity saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-	Registry::GetComponent<UIInteractable>(saveBtn.Id()).OnClick = []() {
+	Button saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
+	saveBtn.interactable.OnClick = []() {
 		Tilemap::Save("level_01.lvl");
 	};
 
 	currentY += 50.0f;
 
-	Entity loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-	Registry::GetComponent<UIInteractable>(loadBtn.Id()).OnClick = []() {
+	Button loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
+	loadBtn.interactable.OnClick = []() {
 		Tilemap::Load("level_01.lvl");
 	};
 
@@ -113,8 +112,22 @@ void Editor::Initialize()
 
 	BuildPaletteWindow(availableTiles);
 
+	Entity toolbarPanel = UI::CreatePanel({ { -100_px, 10_px }, { 200_px, 40_px }, { 0.5f, 0.0f } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
+
+	Button playBtn = UI::CreateButton({ { 50_px, 0_px }, { 30_px, 15_px } }, "Play", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
+	Button pauseBtn = UI::CreateButton({ { 100_px, 0_px }, { 30_px, 15_px } }, "Pause", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
+	Button stopBtn = UI::CreateButton({ { 150_px, 0_px }, { 30_px, 15_px } }, "Stop", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
+
+	// TODO: Use your layout engine margins/widths to space them out side-by-side (e.g. 33% width each)
+
+	playBtn.interactable.OnClick = []() { Editor::Play(); };
+	pauseBtn.interactable.OnClick = []() { Editor::Pause(); };
+	stopBtn.interactable.OnClick = []() { Editor::Stop(); };
+
 	cameraEntity = Registry::CreateEntity({ 0.0f, 0.0f });
 	cameraEntity.AddComponent<Camera>();
+
+	Renderer::SetActiveCamera(cameraEntity);
 
 	gridShader.Create("grid.slang");
 	showGrid = true;
@@ -179,10 +192,9 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 
 	auto CreateColButton = [&](Entity parent, CollisionType type, const Color& color, const String& label) {
 
-		Entity collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content);
-		UIInteractable& interact = collisionBtn.GetComponent<UIInteractable>();
+		Button collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content);
 
-		interact.OnClick = [type, currentX, currentY]() {
+		collisionBtn.interactable.OnClick = [type, currentX, currentY]() {
 			activeCollisionType = type;
 			activeTool = EditorTool::Brush;
 
@@ -319,9 +331,67 @@ void Editor::Update()
 	}
 }
 
+class TempScene : public Scene
+{
+public:
+	void OnStart() override
+	{
+		LoadTilemap("temp_editor_tilemap.lvl");
+
+		Entity player = SpawnPlayer({ 0.0f, 100.0f });
+		Renderer::SetActiveCamera(SetupCamera(player));
+	}
+
+	void OnUpdate() override
+	{
+
+	}
+};
+
+void Editor::Play()
+{
+	if (SceneManager::state == EngineState::Editor)
+	{
+		Tilemap::SaveSync("temp_editor_tilemap.lvl");
+		// TODO: Save ECS state (Registry::Save("temp_editor_ecs.dat"))
+
+		SceneManager::state = EngineState::Playing;
+
+		SceneManager::ChangeScene(std::make_shared<TempScene>());
+		// 3. Initialize runtime systems (e.g. wake up physics, call OnStart scripts)
+		// PhysicsSystem::InitializeRuntime();
+	}
+	else if (SceneManager::state == EngineState::Paused)
+	{
+		SceneManager::state = EngineState::Playing;
+	}
+}
+
+void Editor::Pause()
+{
+	if (SceneManager::state == EngineState::Playing)
+	{
+		SceneManager::state = EngineState::Paused;
+	}
+}
+
+void Editor::Stop()
+{
+	if (SceneManager::state != EngineState::Editor)
+	{
+		SceneManager::state = EngineState::Editor;
+
+		SceneManager::GetActiveScene()->ClearScene();
+
+		Tilemap::Load("temp_editor_tilemap.lvl");
+		Renderer::SetActiveCamera(cameraEntity);
+		// TODO: Load ECS state (Registry::Load("temp_editor_ecs.dat"))
+	}
+}
+
 void Editor::RenderGrid(VkCommandBuffer cmd)
 {
-	if (!showGrid) { return; }
+	if (!showGrid || SceneManager::state != EngineState::Editor) { return; }
 
 	Transform2D& camTrans = Registry::GetTransform(cameraEntity.Id());
 	UIRect& vpRect = Registry::GetComponent<UIRect>(viewportPanel.Id());

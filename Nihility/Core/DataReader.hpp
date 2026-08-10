@@ -6,7 +6,7 @@
 
 struct FileData;
 
-struct DataReader
+struct NH_API DataReader
 {
 	DataReader(void* buffer, U64 size);
 	DataReader(FileData& data);

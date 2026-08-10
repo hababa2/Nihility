@@ -100,7 +100,7 @@ void UI::Update()
 
 void UI::ResolveUnits()
 {
-	glm::vec2 viewport = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+	glm::vec2 viewport = WindowSize();
 	F32 dpi = (F32)Settings::Dpi();
 
 	auto ResolveEntityLayout = [&](auto& self, U32 id, glm::vec2 parentSize, F32 parentFontSize, bool parentHidden, bool parentHitTestInvisible) -> void {
@@ -344,7 +344,7 @@ void UI::UpdateLayouts()
 			contentRect.resolvedPos.y = scroll.scrollOffset.y;
 
 			glm::vec2 pSize = GetParentSize(id);
-			glm::vec2 vp = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+			glm::vec2 vp = WindowSize();
 			F32 dpi = (F32)Settings::Dpi();
 
 			SetUIValueFromPixels(contentRect.pos.y, contentRect.resolvedPos.y, pSize.x, pSize, vp, dpi, RootFontSize);
@@ -615,7 +615,7 @@ void UI::ProcessResizable(U32 id)
 		rect.resolvedSize = glm::clamp(rect.resolvedSize, resizable.minSize, resizable.maxSize);
 
 		glm::vec2 pSize = GetParentSize(id);
-		glm::vec2 vp = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+		glm::vec2 vp = WindowSize();
 		F32 dpi = (F32)Settings::Dpi();
 
 		F32 mT = UI::ResolveUIValue(rect.marginTop, pSize.y, pSize, vp, dpi, RootFontSize);
@@ -668,7 +668,7 @@ void UI::ProcessWindow(U32 id)
 		glm::vec2 newPixelPos = mousePos - window.dragOffset;
 
 		glm::vec2 pSize = GetParentSize(id);
-		glm::vec2 vp = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+		glm::vec2 vp = WindowSize();
 		F32 dpi = (F32)Settings::Dpi();
 
 		F32 mL = UI::ResolveUIValue(rect.marginLeft, pSize.x, pSize, vp, dpi, RootFontSize);
@@ -805,9 +805,10 @@ void UI::UpdateVisuals()
 	Vector<TextVertex> textVertices;
 	Vector<U32> textIndices;
 
-	F32 physicalAspect = (F32)Settings::WindowWidth() / (F32)Settings::WindowHeight();
+	glm::vec vp = WindowSize();
+	F32 physicalAspect = vp.x / vp.y;
 	F32 virtualWidth = 1080.0f * physicalAspect;
-	glm::mat4 uiProjection = glm::ortho(0.0f, (F32)Settings::WindowWidth(), 0.0f, (F32)Settings::WindowHeight(), -1.0f, 1.0f);
+	glm::mat4 uiProjection = glm::ortho(0.0f, vp.x, 0.0f, vp.y, -1.0f, 1.0f);
 
 	UIDrawCmd currentCmd{};
 	currentCmd.scissor = { { 0, 0 }, { 1920, 1080 } };
@@ -895,7 +896,7 @@ void UI::GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection
 
 	F32 scale = textComp.resolvedFontSize / (F32)textComp.font->GlyphSize();
 
-	//F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	//F32 aspectCorrectionX = (vp.y * 1920.0f) / (vp.x * 1080.0f);
 	F32 textWidth = GetTextWidth(textComp);
 	F32 startX = absPos.x;
 
@@ -1008,7 +1009,8 @@ F32 UI::GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex)
 {
 	if (textComp.text.empty() || !textComp.font || stopIndex == 0) { return 0.0f; }
 
-	F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	glm::vec2 vp = WindowSize();
+	F32 aspectCorrectionX = (vp.y * 1920.0f) / (vp.x * 1080.0f);
 	F32 scale = textComp.resolvedFontSize / (F32)textComp.font->GlyphSize();
 	F32 width = 0.0f;
 	U8 prev = 255;
@@ -1032,7 +1034,8 @@ U32 UI::CalculateCursorIndexFromMouse(const UIText& textComp, F32 localMouseX)
 {
 	if (textComp.text.empty() || !textComp.font) { return 0; }
 
-	F32 aspectCorrectionX = ((F32)Settings::WindowHeight() * 1920.0f) / ((F32)Settings::WindowWidth() * 1080.0f);
+	glm::vec2 vp = WindowSize();
+	F32 aspectCorrectionX = (vp.y * 1920.0f) / (vp.x * 1080.0f);
 	F32 scale = textComp.resolvedFontSize / (F32)textComp.font->GlyphSize();
 	F32 currentX = 0.0f;
 	U8 prev = 255;
@@ -1145,8 +1148,9 @@ void UI::Render(VkCommandBuffer cmd)
 		physicalScissor.offset.x = glm::max(0, (I32)virtualScissor.offset.x);
 		physicalScissor.offset.y = glm::max(0, (I32)virtualScissor.offset.y);
 
-		I32 right = glm::min((I32)Settings::WindowWidth(), (I32)(virtualScissor.offset.x + virtualScissor.extent.x));
-		I32 bottom = glm::min((I32)Settings::WindowHeight(), (I32)(virtualScissor.offset.y + virtualScissor.extent.y));
+		glm::vec2 vp = WindowSize();
+		I32 right = glm::min((I32)vp.x, (I32)(virtualScissor.offset.x + virtualScissor.extent.x));
+		I32 bottom = glm::min((I32)vp.y, (I32)(virtualScissor.offset.y + virtualScissor.extent.y));
 
 		physicalScissor.extent.width = glm::max(0, right - physicalScissor.offset.x);
 		physicalScissor.extent.height = glm::max(0, bottom - physicalScissor.offset.y);
@@ -1206,7 +1210,7 @@ glm::vec2 UI::GetAbsoluteUIPosition(U32 entityId)
 
 	if (isRoot)
 	{
-		glm::vec2 windowSize = { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+		glm::vec2 windowSize = WindowSize();
 		glm::vec2 anchorPixelOffset = windowSize * currentRect.anchor;
 
 		return anchorPixelOffset + currentRect.resolvedPos;
@@ -1222,14 +1226,15 @@ glm::vec2 UI::GetAbsoluteUIPosition(U32 entityId)
 
 Scissor UI::GetAbsoluteScissor(U32 entityId)
 {
-	F32 physicalAspect = (F32)Settings::WindowWidth() / (F32)Settings::WindowHeight();
+	glm::vec2 vp = WindowSize();
+	F32 physicalAspect = vp.x / vp.y;
 	F32 virtualHeight = 1080.0f;
 	F32 virtualWidth = virtualHeight * physicalAspect;
 
 	F32 minX = 0.0f;
 	F32 minY = 0.0f;
-	F32 maxX = (F32)Settings::WindowWidth();
-	F32 maxY = (F32)Settings::WindowHeight();
+	F32 maxX = vp.x;
+	F32 maxY = vp.y;
 
 	U32 currentId = entityId;
 	while (currentId != U32_MAX)
@@ -1346,7 +1351,7 @@ Entity UI::CreateTextInput(const UIRectDef& def, Entity parent)
 	return root;
 }
 
-Entity UI::CreateButton(const UIRectDef& def, const String& text, const Color& color, Entity parent)
+Button UI::CreateButton(const UIRectDef& def, const String& text, const Color& color, Entity parent)
 {
 	Entity buttonEntity = CreatePanel(def, color, parent);
 
@@ -1366,7 +1371,7 @@ Entity UI::CreateButton(const UIRectDef& def, const String& text, const Color& c
 		Registry::GetComponent<UIText>(textEntity.Id()).color = color.GetContrastTextColor();
 	};
 
-	return buttonEntity;
+	return { buttonEntity, interactable };
 }
 
 Entity UI::CreateWindow(const UIRectDef& def, const String& title, bool resizable)
@@ -1418,7 +1423,7 @@ glm::vec2 UI::GetParentSize(U32 id)
 		}
 	}
 
-	return { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+	return WindowSize();
 };
 
 F32 UI::ResolveUIValue(const UIValue& val, F32 parentAxis, glm::vec2 parentSize, glm::vec2 viewportSize, F32 dpi, F32 parentFontSize)
@@ -1483,4 +1488,15 @@ void UI::SetUIValueFromPixels(UIValue& val, F32 targetPixels, F32 parentAxis, gl
 	case UIUnit::Em: { val.value = parentFontSize > 0.0f ? targetPixels / parentFontSize : 0.0f; } break;
 	case UIUnit::Rem: { val.value = RootFontSize > 0.0f ? targetPixels / RootFontSize : 0.0f; } break;
 	}
+}
+
+glm::vec2 UI::WindowSize()
+{
+#ifdef NH_DEBUG
+	return { (F32)Settings::WindowWidth(), (F32)Settings::WindowHeight() };
+#else
+	glm::vec4 area = Renderer::RenderArea();
+
+	return { area.z, area.w };
+#endif
 }

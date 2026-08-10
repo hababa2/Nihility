@@ -53,6 +53,8 @@ struct UIValue
 	constexpr UIValue(F32 value) : value(value), unit(UIUnit::Pixel) {}
 	constexpr UIValue(F32 value, UIUnit unit) : value(value), unit(unit) {}
 
+	constexpr UIValue& operator-() { value = -value; return *this; }
+
 	F32 value = 0.0f;
 	UIUnit unit = UIUnit::Pixel;
 };
@@ -149,6 +151,12 @@ struct NH_API UIInteractable
 	Function<void()> OnClick = nullptr;
 	Function<void()> OnHoverEnter = nullptr;
 	Function<void()> OnHoverExit = nullptr;
+};
+
+struct NH_API Button
+{
+	Entity entity;
+	UIInteractable& interactable;
 };
 
 struct NH_API UIIgnoreHitTest {};
@@ -268,7 +276,7 @@ public:
 	static Entity CreatePanel(const UIRectDef& def, const Color& color, Entity parent = {});
 	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, const Color& color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
 	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {});
-	static Entity CreateButton(const UIRectDef& def, const String& text, const Color& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
+	static Button CreateButton(const UIRectDef& def, const String& text, const Color& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
 	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false);
 	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {});
 
@@ -308,6 +316,8 @@ private:
 	static void Render(VkCommandBuffer_T* cmd);
 
 	static void AttachToParent(Entity child, Entity parent);
+
+	static glm::vec2 WindowSize();
 
 	static constexpr U32 MaxPanels = 1000;
 	static constexpr U32 MaxCharacters = 1000;

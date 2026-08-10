@@ -11,6 +11,7 @@
 #include "Platform/Platform.hpp"
 #include "Components/Registry.hpp"
 #include "Physics/Tilemap.hpp"
+#include "Resources/Scene.hpp"
 
 #define VMA_VULKAN_VERSION 1003000
 #define VMA_IMPLEMENTATION
@@ -114,6 +115,8 @@ VkAllocationCallbacks* Renderer::allocationCallbacks;
 
 Vector<Function<void()>> Renderer::pendingDeletions;
 Vector<Function<void()>> Renderer::deletionQueues[MaxFramesInFlight];
+
+Entity Renderer::activeCamera;
 
 #ifdef NH_DEBUG
 RenderTarget Renderer::viewportTarget;
@@ -1037,23 +1040,27 @@ void Renderer::SubmitSprite(const SpriteData& sprite)
 	extractor.SubmitSprite(sprite);
 }
 
+void Renderer::SetActiveCamera(Entity camera)
+{
+	activeCamera = camera;
+}
+
 glm::mat4 Renderer::GetViewProjectionMatrix()
 {
-	auto cameraView = Registry::View<Camera>();
 	glm::mat4 viewMatrix = glm::mat4(1.0f);
 
 	F32 width = 1920.0f;
 	F32 height = 1080.0f;
 
-	if (cameraView.Size() > 0)
+	if (activeCamera.Valid())
 	{
-		U32 activeCamId = cameraView.GetEntity(0);
-		Transform2D& camTrans = Registry::GetTransform(activeCamId);
+		Transform2D& camTrans = Registry::GetTransform(activeCamera.Id());
 
-		glm::vec2 halfScreen = glm::vec2(width, height) / 2.0f;
 #ifdef NH_DEBUG
-		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position, 0.0f));
+		glm::vec2 halfScreen = SceneManager::CurrentState() == EngineState::Editor ? glm::vec2() : glm::vec2(width, height) / 2.0f;
+		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position + halfScreen, 0.0f));
 #else
+		glm::vec2 halfScreen = glm::vec2(width, height) / 2.0f;
 		viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camTrans.position + halfScreen, 0.0f));
 #endif
 	}

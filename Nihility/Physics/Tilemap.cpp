@@ -311,7 +311,11 @@ void Tilemap::EnsureRenderDataExists(U32 entityId, U32 requiredVertices, U32 req
 		}
 	}
 
-	if (!renderData.isInitialized || requiredVertices > renderData.maxVertexCount || debugVertices > renderData.debugMaxVertexCount)
+	if (!renderData.isInitialized || requiredVertices > renderData.maxVertexCount
+#ifdef NH_DEBUG
+		|| debugVertices > renderData.debugMaxVertexCount
+#endif
+	)
 	{
 		if (renderData.isInitialized)
 		{
@@ -330,7 +334,9 @@ void Tilemap::EnsureRenderDataExists(U32 entityId, U32 requiredVertices, U32 req
 		U32 paddedDebugIndices = debugIndices + 192;
 
 		renderData.maxVertexCount = paddedVertices;
+#ifdef NH_DEBUG
 		renderData.debugMaxVertexCount = paddedDebugVertices;
+#endif
 
 		renderData.vertexBuffer = Renderer::CreateBuffer(
 			sizeof(TileVertex) * paddedVertices,
@@ -468,7 +474,7 @@ bool Tilemap::SweepX(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 		{
 			U32 flags = GetTileCollision(x, y);
 
-			if (flags & (U32)CollisionType::Solid)
+			if (flags == (U32)CollisionType::Solid)
 			{
 				if (movingRight) { transform.position.x = (x * TileSize) - aabb.halfExtents.x - aabb.offset.x; }
 				else { transform.position.x = ((x + 1) * TileSize) + aabb.halfExtents.x - aabb.offset.x; }
@@ -515,7 +521,7 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 		{
 			U32 flags = GetTileCollision(x, y);
 
-			if (flags & (U32)CollisionType::Solid)
+			if (flags == (U32)CollisionType::Solid)
 			{
 				if (!movingDown)
 				{
@@ -524,13 +530,13 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 					F32 tileLeft = x * TileSize;
 					F32 tileRight = tileLeft + TileSize;
 
-					if (leftX < tileRight && leftX > tileRight - CornerTolerance && !(GetTileCollision(x + 1, y) & (U32)CollisionType::Solid))
+					if (leftX < tileRight && leftX > tileRight - CornerTolerance && !(GetTileCollision(x + 1, y) == (U32)CollisionType::Solid))
 					{
 						transform.position.x = tileRight + aabb.halfExtents.x + 0.01f;
 						continue;
 					}
 
-					if (rightX > tileLeft && rightX < tileLeft + CornerTolerance && !(GetTileCollision(x - 1, y) & (U32)CollisionType::Solid))
+					if (rightX > tileLeft && rightX < tileLeft + CornerTolerance && !(GetTileCollision(x - 1, y) == (U32)CollisionType::Solid))
 					{
 						transform.position.x = tileLeft - aabb.halfExtents.x - 0.01f;
 						continue;
@@ -543,7 +549,7 @@ bool Tilemap::SweepY(Transform2D& transform, const ColliderAABB& aabb, glm::vec2
 				velocity.y = 0.0f;
 				return true;
 			}
-			else if ((flags & (U32)CollisionType::OneWay) && movingDown)
+			else if ((flags == (U32)CollisionType::OneWay) && movingDown)
 			{
 				F32 previousBottomY = transform.position.y + aabb.offset.y + aabb.halfExtents.y;
 				F32 platformTopY = y * TileSize;
@@ -586,6 +592,32 @@ void Tilemap::Save(const String& filepath)
 	}
 
 	FileIO::WriteFileAsync(filepath, buffer, bufferSize);
+}
+
+void Tilemap::SaveSync(const String& filepath)
+{
+	U32 chunkCount = (U32)chunkMap.size();
+
+	U32 bufferSize = sizeof(U32) + (sizeof(U64) + sizeof(TilemapChunk::layers)) * chunkCount;
+
+	U8* buffer;
+	Memory::Allocate(&buffer, bufferSize);
+	U8* pointer = buffer;
+
+	memcpy(pointer, (U8*)&chunkCount, sizeof(U32));
+	pointer += sizeof(U32);
+
+	for (const auto& [key, entity] : chunkMap)
+	{
+		memcpy(pointer, (U8*)&key, sizeof(U64));
+		pointer += sizeof(U64);
+
+		TilemapChunk& chunk = Registry::GetComponent<TilemapChunk>(entity.Id());
+		memcpy(pointer, (U8*)&chunk.layers, sizeof(chunk.layers));
+		pointer += sizeof(chunk.layers);
+	}
+
+	FileIO::WriteFileSync(filepath, buffer, bufferSize);
 }
 
 void Tilemap::Load(const String& filepath)
@@ -645,4 +677,33 @@ void Tilemap::Load(const String& filepath)
 	};
 
 	FileIO::ReadFileAsync(filepath, FinishLoad);
+}
+
+void Tilemap::Unload()
+{
+	std::lock_guard<std::mutex> lock(taskMutex);
+
+	mainThreadTasks.push_back([]() {
+
+		for (auto& [key, entity] : chunkMap)
+		{
+			if (Registry::HasComponent<TilemapRenderData>(entity.Id()))
+			{
+				TilemapRenderData& rd = Registry::GetComponent<TilemapRenderData>(entity.Id());
+				if (rd.isInitialized)
+				{
+					Renderer::DestroyBuffer(rd.vertexBuffer);
+					Renderer::DestroyBuffer(rd.indexBuffer);
+#ifdef NH_DEBUG
+					Renderer::DestroyBuffer(rd.debugVertexBuffer);
+					Renderer::DestroyBuffer(rd.debugIndexBuffer);
+#endif
+				}
+			}
+
+			Registry::DestroyEntity(entity);
+		}
+
+		chunkMap.clear();
+	});
 }
