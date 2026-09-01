@@ -9,17 +9,21 @@
 #include "Resources/Scene.hpp"
 #include "Platform/Input.hpp"
 #include "Core/Logger.hpp"
+#include "Core/File.hpp"
 
 Entity Editor::viewportPanel;
 Entity Editor::tileSelectionHighlight;
 Entity Editor::collisionSelectionHighlight;
 Entity Editor::visualPaletteRoot;
 Entity Editor::collisionPaletteRoot;
+Entity Editor::saveMenuRoot;
+Entity Editor::loadMenuRoot;
 
 EditorTool Editor::activeTool = EditorTool::Brush;
 TileLayer Editor::activeLayer = TileLayer::Midground;
 U32 Editor::selectedTextureId = U32_MAX;
 CollisionType Editor::activeCollisionType = CollisionType::Solid;
+String Editor::currentLevel;
 
 Entity Editor::cameraEntity;
 
@@ -33,21 +37,26 @@ void Editor::Initialize()
 	Logger::Trace("Initializing Level Editor...");
 
 	Entity editorBg = UI::CreatePanel({ {}, { 100_vw, 100_vh } }, { 0.15f, 0.15f, 0.15f, 1.0f });
+	editorBg.AddComponent<NoSerialization>();
 
 	viewportPanel = UI::CreatePanel({ { 0_px, 0_px }, { 90_vw, 60_vh }, { 0.0f, 0.0f }, 10_px, 0_px, 0_px, 150_px }, { 1.0f, 1.0f, 1.0f, 1.0f }, editorBg);
 	viewportPanel.AddComponent<UIResizable>();
+	viewportPanel.AddComponent<NoSerialization>();
 
 	Registry::GetComponent<UIPanel>(viewportPanel.Id()).textureId = Renderer::viewportTarget.Id();
 
 	Entity toolbar = UI::CreatePanel({ {}, { 150_px, 100_vw } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
+	toolbar.AddComponent<NoSerialization>();
 
 	F32 currentY = 10.0f;
 	auto CreateToolButton = [&](const String& name, EditorTool tool) {
-		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
+		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar, true);
+		btn.interactable.onClickName = name;
 
-		btn.interactable.OnClick = [tool]() {
+		UI::RegisterAction(name, [tool]() {
 			activeTool = tool;
-		};
+		});
+
 		currentY += 50.0f;
 	};
 
@@ -58,9 +67,10 @@ void Editor::Initialize()
 
 	currentY += 50.0f;
 	auto CreateLayerButton = [&](const String& name, TileLayer layer) {
-		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
+		Button btn = UI::CreateButton({ { 5.0f, currentY }, { 120.0f, 40.0f } }, name, { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar, true);
+		btn.interactable.onClickName = name;
 
-		btn.interactable.OnClick = [layer]() {
+		UI::RegisterAction(name, [layer]() {
 			activeLayer = layer;
 
 			if (activeLayer == TileLayer::Collision)
@@ -74,10 +84,11 @@ void Editor::Initialize()
 			{
 				if (!Registry::HasComponent<UIHidden>(collisionPaletteRoot.Id())) { collisionPaletteRoot.AddComponent<UIHidden>(); }
 				if (Registry::HasComponent<UIHidden>(visualPaletteRoot.Id())) { Registry::RemoveComponent<UIHidden>(visualPaletteRoot.Id()); }
-				
+
 				Tilemap::showCollision = false;
 			}
-		};
+		});
+
 		currentY += 50.0f;
 	};
 
@@ -86,19 +97,91 @@ void Editor::Initialize()
 	CreateLayerButton("Foreground", TileLayer::Foreground);
 	CreateLayerButton("Collision", TileLayer::Collision);
 
-	currentY += 50.0f;
+	saveMenuRoot = UI::CreatePanel({ { 0_px, 0_px }, { 150_px, 300_px }, { 0.5f, 0.5f } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
+	saveMenuRoot.AddComponent<NoSerialization>();
+	saveMenuRoot.AddComponent<UIHidden>();
 
-	Button saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-	saveBtn.interactable.OnClick = []() {
-		Tilemap::Save("level_01.lvl");
+	auto BuildSaveMenu = [&]() {
+		UI::DestroyChildren(saveMenuRoot);
+
+		Entity levelName = UI::CreateTextInput({ { 10_px, 0_px }, { 60_px, 40_px } }, saveMenuRoot, true);
+
+		Button saveBtn = UI::CreateButton({ { 10_px, 50_px }, { 30_px, 20_px } }, "Save", { 0.3f, 0.3f, 0.3f, 1.0f }, saveMenuRoot, true);
+
+		saveBtn.interactable.onClickName = "SaveLevel";
+
+		UI::RegisterAction(saveBtn.interactable.onClickName, [levelName]() mutable {
+			Editor::SaveLevel(levelName.GetComponent<UITextInput>().text);
+			saveMenuRoot.AddComponent<UIHidden>();
+		});
+
+		Button cancelBtn = UI::CreateButton({ { 10_px, 70_px }, { 30_px, 20_px } }, "Cancel", { 0.3f, 0.3f, 0.3f, 1.0f }, saveMenuRoot, true);
+
+		cancelBtn.interactable.onClickName = "CancelSave";
+
+		UI::RegisterAction(cancelBtn.interactable.onClickName, []() {
+			saveMenuRoot.AddComponent<UIHidden>();
+		});
 	};
 
 	currentY += 50.0f;
 
-	Button loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar);
-	loadBtn.interactable.OnClick = []() {
-		Tilemap::Load("level_01.lvl");
+	Button saveBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Save As", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar, true);
+	saveBtn.interactable.onClickName = "Save As";
+
+	UI::RegisterAction("Save As", [&]() {
+		if (saveMenuRoot.HasComponent<UIHidden>())
+		{
+			BuildSaveMenu();
+			Registry::RemoveComponent<UIHidden>(saveMenuRoot.Id());
+		}
+	});
+
+	loadMenuRoot = UI::CreatePanel({ { 0_px, 0_px }, { 150_px, 300_px }, { 0.5f, 0.5f } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
+	loadMenuRoot.AddComponent<NoSerialization>();
+	loadMenuRoot.AddComponent<UIHidden>();
+
+	auto BuildLoadMenu = [&]() {
+		UI::DestroyChildren(loadMenuRoot);
+
+		Vector<String> levels = FileIO::GetSavedLevels();
+
+		F32 curY = 0.0f;
+
+		for (const String& levelName : levels)
+		{
+			Button btn = UI::CreateButton({ { 10_px, curY }, { 30_px, 20_px } }, levelName, { 0.3f, 0.3f, 0.3f, 1.0f }, loadMenuRoot, true);
+			curY += 40.0f;
+
+			btn.interactable.onClickName = levelName;
+
+			UI::RegisterAction(levelName, [levelName]() {
+				Editor::LoadLevel(levelName);
+				loadMenuRoot.AddComponent<UIHidden>();
+			});
+		}
+
+		Button cancelBtn = UI::CreateButton({ { 10_px, curY }, { 30_px, 20_px } }, "Cancel", { 0.3f, 0.3f, 0.3f, 1.0f }, loadMenuRoot, true);
+
+		cancelBtn.interactable.onClickName = "CancelLoad";
+
+		UI::RegisterAction(cancelBtn.interactable.onClickName, []() {
+			loadMenuRoot.AddComponent<UIHidden>();
+		});
 	};
+
+	currentY += 50.0f;
+
+	Button loadBtn = UI::CreateButton({ { 5.0f, currentY }, { 100.0f, 40.0f } }, "Load", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbar, true);
+	loadBtn.interactable.onClickName = "Load";
+
+	UI::RegisterAction("Load", [&]() {
+		if (loadMenuRoot.HasComponent<UIHidden>())
+		{
+			BuildLoadMenu();
+			Registry::RemoveComponent<UIHidden>(loadMenuRoot.Id());
+		}
+	});
 
 	Vector<U32> availableTiles;
 
@@ -113,42 +196,64 @@ void Editor::Initialize()
 	BuildPaletteWindow(availableTiles);
 
 	Entity toolbarPanel = UI::CreatePanel({ { -100_px, 10_px }, { 200_px, 40_px }, { 0.5f, 0.0f } }, { 0.1f, 0.1f, 0.1f, 1.0f }, editorBg);
+	toolbarPanel.AddComponent<NoSerialization>();
 
-	Button playBtn = UI::CreateButton({ { 50_px, 0_px }, { 30_px, 15_px } }, "Play", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
-	Button pauseBtn = UI::CreateButton({ { 100_px, 0_px }, { 30_px, 15_px } }, "Pause", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
-	Button stopBtn = UI::CreateButton({ { 150_px, 0_px }, { 30_px, 15_px } }, "Stop", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel);
+	Button playBtn = UI::CreateButton({ { 50_px, 0_px }, { 30_px, 15_px } }, "Play", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel, true);
+	playBtn.interactable.onClickName = "Play";
 
-	// TODO: Use your layout engine margins/widths to space them out side-by-side (e.g. 33% width each)
+	UI::RegisterAction("Play", []() {
+		Editor::Play();
+	});
 
-	playBtn.interactable.OnClick = []() { Editor::Play(); };
-	pauseBtn.interactable.OnClick = []() { Editor::Pause(); };
-	stopBtn.interactable.OnClick = []() { Editor::Stop(); };
+	Button pauseBtn = UI::CreateButton({ { 100_px, 0_px }, { 30_px, 15_px } }, "Pause", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel, true);
+	pauseBtn.interactable.onClickName = "Pause";
+
+	UI::RegisterAction("Pause", []() {
+		Editor::Pause();
+	});
+
+	Button stopBtn = UI::CreateButton({ { 150_px, 0_px }, { 30_px, 15_px } }, "Stop", { 0.3f, 0.3f, 0.3f, 1.0f }, toolbarPanel, true);
+	stopBtn.interactable.onClickName = "Stop";
+
+	UI::RegisterAction("Stop", []() {
+		Editor::Stop();
+	});
 
 	cameraEntity = Registry::CreateEntity({ 0.0f, 0.0f });
 	cameraEntity.AddComponent<Camera>();
+	cameraEntity.AddComponent<NoSerialization>();
 
 	Renderer::SetActiveCamera(cameraEntity);
 
 	gridShader.Create("grid.slang");
 	showGrid = true;
+
+	Input::BindAxis("Horizontal", ButtonCode::A, -1.0f);
+	Input::BindAxis("Horizontal", ButtonCode::D, 1.0f);
+	Input::BindAction("Jump", ButtonCode::Space);
 }
 
 void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 {
-	Entity paletteBody = UI::CreateWindow({ { 10_vw, 10_vw }, { 300.0f, 200.0f } }, "Tile Palette", true);
+	Entity paletteBody = UI::CreateWindow({ { 10_vw, 10_vw }, { 300.0f, 200.0f } }, "Tile Palette", true, true);
 
 	visualPaletteRoot = UI::CreateContainer({ { 0_px, 0_px }, { 100_pw, 100_ph } }, paletteBody);
+	visualPaletteRoot.AddComponent<NoSerialization>();
+
 	collisionPaletteRoot = UI::CreateContainer({ { 0_px, 0_px }, { 100_pw, 100_ph } }, paletteBody);
 	collisionPaletteRoot.AddComponent<UIHidden>();
+	collisionPaletteRoot.AddComponent<NoSerialization>();
 
-	ScrollAreaEntities visualScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, visualPaletteRoot);
-	ScrollAreaEntities collisionScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, collisionPaletteRoot);
+	ScrollAreaEntities visualScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, visualPaletteRoot, true);
+	ScrollAreaEntities collisionScroll = UI::CreateScrollArea({ {}, { 100_pw, 100_ph } }, collisionPaletteRoot, true);
 
 	constexpr F32 TileDisplaySize = 64.0f;
 	constexpr F32 Padding = 10.0f;
 
 	tileSelectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, visualScroll.content);
+	tileSelectionHighlight.AddComponent<NoSerialization>();
 	collisionSelectionHighlight = UI::CreatePanel({ { -1000.0f, -1000.0f }, { TileDisplaySize + 4.0f, TileDisplaySize + 4.0f } }, { 1.0f, 0.8f, 0.2f, 1.0f }, collisionScroll.content);
+	collisionSelectionHighlight.AddComponent<NoSerialization>();
 
 	F32 currentX = Padding;
 	F32 currentY = Padding;
@@ -157,26 +262,28 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 
 	for (U32 texID : loadedTextureIds)
 	{
-		Entity tileBtn = UI::CreatePanel({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, { 1.0f, 1.0f, 1.0f, 1.0f }, visualScroll.content);
-		Registry::GetComponent<UIPanel>(tileBtn.Id()).textureId = texID;
+		Button tileBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, "", { 1.0f, 1.0f, 1.0f, 1.0f }, visualScroll.content, true);
+		Registry::GetComponent<UIPanel>(tileBtn.entity.Id()).textureId = texID;
 
-		UIInteractable& interact = tileBtn.AddComponent<UIInteractable>();
+		tileBtn.interactable.onClickName = "tile_click" + std::to_string(texID);
+		tileBtn.interactable.onHoverEnterName = "tile_hover" + std::to_string(texID);
+		tileBtn.interactable.onHoverExitName = "tile_exit" + std::to_string(texID);
 
-		interact.OnHoverEnter = [tileBtn]() {
-			Registry::GetComponent<UIPanel>(tileBtn.Id()).color = { 0.8f, 0.8f, 0.8f, 1.0f };
-		};
-
-		interact.OnHoverExit = [tileBtn]() {
-			Registry::GetComponent<UIPanel>(tileBtn.Id()).color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		};
-
-		interact.OnClick = [texID, currentX, currentY]() {
+		UI::RegisterAction(tileBtn.interactable.onClickName, [texID, currentX, currentY]() {
 			selectedTextureId = texID;
 			activeTool = EditorTool::Brush;
 
 			UIRect& highlightRect = Registry::GetComponent<UIRect>(tileSelectionHighlight.Id());
 			highlightRect.pos = { currentX - 2.0f, currentY - 2.0f };
-		};
+		});
+
+		UI::RegisterAction(tileBtn.interactable.onHoverEnterName, [tileBtn]() {
+			Registry::GetComponent<UIPanel>(tileBtn.entity.Id()).color = { 0.8f, 0.8f, 0.8f, 1.0f };
+		});
+
+		UI::RegisterAction(tileBtn.interactable.onHoverExitName, [tileBtn]() {
+			Registry::GetComponent<UIPanel>(tileBtn.entity.Id()).color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		});
 
 		currentX += TileDisplaySize + Padding;
 
@@ -192,15 +299,16 @@ void Editor::BuildPaletteWindow(const Vector<U32>& loadedTextureIds)
 
 	auto CreateColButton = [&](Entity parent, CollisionType type, const Color& color, const String& label) {
 
-		Button collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content);
+		Button collisionBtn = UI::CreateButton({ { currentX, currentY }, { TileDisplaySize, TileDisplaySize } }, label, color, collisionScroll.content, true);
+		collisionBtn.interactable.onClickName = label;
 
-		collisionBtn.interactable.OnClick = [type, currentX, currentY]() {
+		UI::RegisterAction(label, [type, currentX, currentY]() {
 			activeCollisionType = type;
 			activeTool = EditorTool::Brush;
 
 			UIRect& highlightRect = Registry::GetComponent<UIRect>(collisionSelectionHighlight.Id());
 			highlightRect.pos = { currentX - 2.0f, currentY - 2.0f };
-		};
+		});
 
 		currentX += TileDisplaySize + Padding;
 
@@ -272,7 +380,7 @@ void Editor::Update()
 				if (activeTool == EditorTool::Select)
 				{
 					Tile& tile = Tilemap::GetTileAtGlobal(gridX, gridY, (U32)activeLayer, false);
-					
+
 					if (tile.data != U32_MAX)
 					{
 						*data = tile.data;
@@ -331,12 +439,12 @@ void Editor::Update()
 	}
 }
 
-class TempScene : public Scene
+struct TempScene : public Scene
 {
 public:
 	void OnStart() override
 	{
-		LoadTilemap("temp_editor_tilemap.lvl");
+		Editor::LoadLevel("temp_editor");
 
 		Entity player = SpawnPlayer({ 0.0f, 100.0f });
 		Renderer::SetActiveCamera(SetupCamera(player));
@@ -352,14 +460,10 @@ void Editor::Play()
 {
 	if (SceneManager::state == EngineState::Editor)
 	{
-		Tilemap::SaveSync("temp_editor_tilemap.lvl");
-		// TODO: Save ECS state (Registry::Save("temp_editor_ecs.dat"))
+		SaveLevel("temp_editor");
 
 		SceneManager::state = EngineState::Playing;
-
 		SceneManager::ChangeScene(std::make_shared<TempScene>());
-		// 3. Initialize runtime systems (e.g. wake up physics, call OnStart scripts)
-		// PhysicsSystem::InitializeRuntime();
 	}
 	else if (SceneManager::state == EngineState::Paused)
 	{
@@ -383,9 +487,9 @@ void Editor::Stop()
 
 		SceneManager::GetActiveScene()->ClearScene();
 
-		Tilemap::Load("temp_editor_tilemap.lvl");
+		DeleteLevel("temp_editor");
+		LoadLevel(currentLevel);
 		Renderer::SetActiveCamera(cameraEntity);
-		// TODO: Load ECS state (Registry::Load("temp_editor_ecs.dat"))
 	}
 }
 
@@ -411,6 +515,35 @@ void Editor::RenderGrid(VkCommandBuffer cmd)
 	vkCmdPushConstants(cmd, gridShader.PipelineLayout(), VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(GridPushConstants), &pc);
 
 	vkCmdDraw(cmd, 6, 1, 0, 0);
+}
+
+void Editor::SaveLevel(const String& levelName)
+{
+	String tilemapPath = "levels/" + levelName + ".tilemap";
+	String entitiesPath = "levels/" + levelName + ".entities";
+
+	Tilemap::Save(tilemapPath);
+	Registry::SaveState(entitiesPath);
+}
+
+void Editor::LoadLevel(const String& levelName)
+{
+	if (levelName != "temp_editor") { currentLevel = levelName; }
+
+	String tilemapPath = "levels/" + levelName + ".tilemap";
+	String entitiesPath = "levels/" + levelName + ".entities";
+
+	Tilemap::Load(tilemapPath);
+	Registry::LoadState(entitiesPath);
+}
+
+void Editor::DeleteLevel(const String& levelName)
+{
+	String tilemapPath = "levels/" + levelName + ".tilemap";
+	String entitiesPath = "levels/" + levelName + ".entities";
+
+	FileIO::DeleteFile(tilemapPath);
+	FileIO::DeleteFile(entitiesPath);
 }
 
 #endif

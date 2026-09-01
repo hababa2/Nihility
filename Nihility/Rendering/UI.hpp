@@ -128,12 +128,50 @@ struct NH_API UIRect
 	bool cascadedHitTestInvisible = false;
 
 	U32 zIndex = 0;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(pos);
+		writer.Write(size);
+		writer.Write(marginTop);
+		writer.Write(marginRight);
+		writer.Write(marginBottom);
+		writer.Write(marginLeft);
+		writer.Write(anchor);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(pos);
+		reader.Read(size);
+		reader.Read(marginTop);
+		reader.Read(marginRight);
+		reader.Read(marginBottom);
+		reader.Read(marginLeft);
+		reader.Read(anchor);
+	}
 };
 
 struct NH_API UIHierarchy
 {
 	Entity parent;
 	Vector<Entity> children;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(parent);
+		writer.Write(children.size());
+		writer.Write(children.data(), children.size() * sizeof(Entity));
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(parent);
+		U64 size = 0;
+		reader.Read(size);
+		children.resize(size);
+		reader.Read(children.data(), children.size() * sizeof(Entity));
+	}
 };
 
 struct NH_API UIPanel
@@ -141,6 +179,20 @@ struct NH_API UIPanel
 	Color color{ 0.2f, 0.2f, 0.2f, 1.0f };
 	U32 textureId = U32_MAX;
 	F32 cornerRadius = 0.0f;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(color);
+		writer.Write(textureId);
+		writer.Write(cornerRadius);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(color);
+		reader.Read(textureId);
+		reader.Read(cornerRadius);
+	}
 };
 
 struct NH_API UIInteractable
@@ -148,9 +200,23 @@ struct NH_API UIInteractable
 	bool isHovered = false;
 	bool isPressed = false;
 
-	Function<void()> OnClick = nullptr;
-	Function<void()> OnHoverEnter = nullptr;
-	Function<void()> OnHoverExit = nullptr;
+	String onClickName = "";
+	String onHoverEnterName = "";
+	String onHoverExitName = "";
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(onClickName);
+		writer.Write(onHoverEnterName);
+		writer.Write(onHoverExitName);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(onClickName);
+		reader.Read(onHoverEnterName);
+		reader.Read(onHoverExitName);
+	}
 };
 
 struct NH_API Button
@@ -159,9 +225,17 @@ struct NH_API Button
 	UIInteractable& interactable;
 };
 
-struct NH_API UIIgnoreHitTest {};
+struct NH_API UIIgnoreHitTest
+{
+	void Serialize(DataWriter& writer) const { }
+	void Deserialize(DataReader& reader) { }
+};
 
-struct NH_API UIHidden {};
+struct NH_API UIHidden
+{
+	void Serialize(DataWriter& writer) const {}
+	void Deserialize(DataReader& reader) {}
+};
 
 struct NH_API UIWindow
 {
@@ -170,6 +244,18 @@ struct NH_API UIWindow
 	bool isDragging = false;
 
 	U32 bodyEntity = U32_MAX;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(titleBarHeight);
+		writer.Write(bodyEntity);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(titleBarHeight);
+		reader.Read(bodyEntity);
+	}
 };
 
 struct NH_API UIResizable
@@ -183,6 +269,20 @@ struct NH_API UIResizable
 	bool draggingBottom = false;
 	bool draggingLeft = false;
 	bool draggingTop = false;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(edgeThickness);
+		writer.Write(minSize);
+		writer.Write(maxSize);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(edgeThickness);
+		reader.Read(minSize);
+		reader.Read(maxSize);
+	}
 };
 
 struct NH_API UIScrollArea
@@ -191,6 +291,22 @@ struct NH_API UIScrollArea
 	glm::vec2 scrollOffset{ 0.0f, 0.0f };
 	F32 scrollSpeed = 30.0f;
 	F32 padding = 10.0f;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(contentEntity);
+		writer.Write(scrollOffset);
+		writer.Write(scrollSpeed);
+		writer.Write(padding);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(contentEntity);
+		reader.Read(scrollOffset);
+		reader.Read(scrollSpeed);
+		reader.Read(padding);
+	}
 };
 
 struct NH_API ScrollAreaEntities
@@ -199,11 +315,15 @@ struct NH_API ScrollAreaEntities
 	Entity content;
 };
 
-struct NH_API UIClipMask {};
+struct NH_API UIClipMask
+{
+	void Serialize(DataWriter& writer) const {}
+	void Deserialize(DataReader& reader) {}
+};
 
 struct NH_API UIText
 {
-	String text;
+	String text = "";
 	std::shared_ptr<Font> font;
 	Color color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	TextAlignment alignment = TextAlignment::Left;
@@ -218,14 +338,44 @@ struct NH_API UIText
 	F32 minAutoFitSize = 8.0f;
 
 	String wrappedText;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(text);
+		writer.Write(font->Name());
+		writer.Write(color);
+		writer.Write(alignment);
+		writer.Write(boldness);
+		writer.Write(fontSize);
+		writer.Write(wrapText);
+		writer.Write(autoFit);
+		writer.Write(minAutoFitSize);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		text = reader.ReadString();
+
+		WString fontName = reader.ReadString<CW>();
+		font = Resources::Load<Font>(fontName);
+
+		reader.Read(color);
+		reader.Read(alignment);
+		reader.Read(boldness);
+		reader.Read(fontSize);
+		reader.Read(wrapText);
+		reader.Read(autoFit);
+		reader.Read(minAutoFitSize);
+	}
 };
 
 struct NH_API UITextInput
 {
 	static constexpr U32 MaxLength = 256;
 
-	String text;
+	String text = "";
 	String hintText = "Enter Text";
+	std::shared_ptr<Font> font;
 	U32 textEntity = U32_MAX;
 	U32 caretEntity = U32_MAX;
 	U32 caretIndex = 0;
@@ -234,6 +384,29 @@ struct NH_API UITextInput
 
 	enum class InputType { Text, Integer, Float };
 	InputType type = InputType::Text;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(hintText);
+		writer.Write(font->Name());
+		writer.Write(textEntity);
+		writer.Write(caretEntity);
+		writer.Write(caretIndex);
+		writer.Write(type);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		hintText = reader.ReadString();
+
+		WString fontName = reader.ReadString<CW>();
+		font = Resources::Load<Font>(fontName);
+
+		reader.Read(textEntity);
+		reader.Read(caretEntity);
+		reader.Read(caretIndex);
+		reader.Read(type);
+	}
 };
 
 struct Scissor
@@ -275,10 +448,14 @@ public:
 	static Entity CreateContainer(const UIRectDef& def, Entity parent = {});
 	static Entity CreatePanel(const UIRectDef& def, const Color& color, Entity parent = {});
 	static Entity CreateText(const UIRectDef& def, const String& text, UIValue fontSize, bool wrapText = false, bool autoFit = false, const Color& color = { 0.0f, 0.0f, 0.0f, 1.0f }, Entity parent = {});
-	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {});
-	static Button CreateButton(const UIRectDef& def, const String& text, const Color& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {});
-	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false);
-	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {});
+	static Entity CreateTextInput(const UIRectDef& def, Entity parent = {}, bool noSerialization = false);
+	static Button CreateButton(const UIRectDef& def, const String& text, const Color& color = { 0.3f, 0.3f, 0.3f, 1.0f }, Entity parent = {}, bool noSerialization = false);
+	static Entity CreateWindow(const UIRectDef& def, const String& title, bool resizable = false, bool noSerialization = false);
+	static ScrollAreaEntities CreateScrollArea(const UIRectDef& def, Entity parent = {}, bool noSerialization = false);
+
+	static void DestroyChildren(Entity parent);
+
+	static void RegisterAction(const String& name, Function<void()> callback);
 
 	static glm::vec2 GetAbsoluteUIPosition(U32 entityId);
 	static Scissor GetAbsoluteScissor(U32 entityId);
@@ -313,6 +490,8 @@ private:
 	static F32 ResolveUIValue(const UIValue& val, F32 parentAxis, glm::vec2 parentSize, glm::vec2 viewportSize, F32 dpi, F32 parentFontSize);
 	static void SetUIValueFromPixels(UIValue& val, F32 targetPixels, F32 parentAxis, glm::vec2 parentSize, glm::vec2 viewportSize, F32 dpi, F32 parentFontSize);
 
+	static void TriggerAction(const String& name);
+
 	static void Render(VkCommandBuffer_T* cmd);
 
 	static void AttachToParent(Entity child, Entity parent);
@@ -342,6 +521,8 @@ private:
 	static U32 hoveredEntity;
 	static U32 activeEntity;
 	static bool cursorChanged;
+
+	static Hashmap<String, Function<void()>> registeredActions;
 
 	friend class Editor;
 	friend class Nihility;

@@ -5,6 +5,7 @@
 
 #include "Core/Time.hpp"
 #include "Components/Registry.hpp"
+#include "Resources/Scene.hpp"
 
 #include "enkiTS/TaskScheduler.h"
 
@@ -22,6 +23,8 @@ void Physics::Shutdown()
 
 void Physics::Update()
 {
+	if (SceneManager::CurrentState() == EngineState::Paused) { return; }
+
 	auto attackers = Registry::View<Hitbox>();
 	auto defenders = Registry::View<Hurtbox, Rigidbody2D>();
 
@@ -111,7 +114,7 @@ void Physics::Update()
 				}
 				else
 				{
-					// If an enemy or physics object falls into spikes, you likely want 
+					// If an enemy or physics object falls into spikes, you likely want
 					// to queue them for destruction instead of respawning them.
 					// e.g., DeferredDestroyQueue.push_back(id);
 				}

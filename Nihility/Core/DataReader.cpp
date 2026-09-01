@@ -49,6 +49,11 @@ U8* DataReader::Pointer() const
 	return pointer;
 }
 
+U64 DataReader::Position() const
+{
+	return pointer - data;
+}
+
 I64 DataReader::Size()
 {
 	return size;

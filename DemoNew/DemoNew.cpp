@@ -8,7 +8,8 @@ class LevelOneScene : public Scene
 public:
 	void OnStart() override
 	{
-		LoadTilemap("level_01.lvl");
+		LoadTilemap("level_01.tilemap");
+		LoadEntities("level_01.entities");
 
 		Entity player = SpawnPlayer({ 0.0f, 100.0f });
 		SetupCamera(player);
@@ -31,15 +32,17 @@ public:
 
 		AddToScene(startButton.entity);
 
-		startButton.interactable.OnClick = []() {
+		startButton.interactable.onClickName = "play_level_one";
+
+		UI::RegisterAction(startButton.interactable.onClickName, []() {
 			SceneManager::ChangeScene(std::make_shared<LevelOneScene>());
-		};
+		});
 	}
 };
 
 void InitGame()
 {
-	SceneManager::ChangeScene(std::make_shared<LevelOneScene>());
+	SceneManager::ChangeScene(std::make_shared<MainMenuScene>());
 }
 
 void ShutdownGame()

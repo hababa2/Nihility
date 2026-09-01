@@ -49,9 +49,13 @@ struct NH_API TilemapChunk
 
 	glm::ivec2 gridPosition{ 0, 0 };
 
-	Array<Array<Tile, ChunkSize* ChunkSize>, (U32)TileLayer::Count> layers{};
+	Array<Array<Tile, ChunkSize * ChunkSize>, (U32)TileLayer::Count> layers{};
 
 	bool isDirty = true;
+
+	void Serialize(DataWriter& writer) const {}
+
+	void Deserialize(DataReader& reader) {}
 };
 
 struct TileVertex
@@ -82,6 +86,10 @@ struct NH_API TilemapRenderData
 	U32 debugMaxVertexCount = 0;
 #endif
 	bool isInitialized = false;
+
+	void Serialize(DataWriter& writer) const { }
+
+	void Deserialize(DataReader& reader) { }
 };
 
 struct LoadedChunkData

@@ -45,10 +45,11 @@ class NH_API Resources
 {
 public:
 	template<typename T>
-	static std::shared_ptr<T> Load(const WString& name)
+	static std::shared_ptr<T> Load(const Path& name)
 	{
 		static ResourcePool<T>& pool = GetPool<T>();
-		if (std::shared_ptr<T> res = pool.Get(name)) { return res; }
+
+		if (std::shared_ptr<T> res = pool.Get((WString)name.wstring())) { return res; }
 
 		return FetchResource<T>(name);
 	}

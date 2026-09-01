@@ -27,6 +27,7 @@ struct NH_API DataReader
 	U8* Data();
 	U8* Data() const;
 	U8* Pointer() const;
+	U64 Position() const;
 	I64 Size();
 
 private:
@@ -38,6 +39,7 @@ private:
 template<class Type>
 inline U64 DataReader::Read(Type& value)
 {
+	//TODO: detect if it's a string
 	return Read(&value, sizeof(Type));
 }
 

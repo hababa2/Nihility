@@ -33,6 +33,8 @@ U32 UI::hoveredEntity = U32_MAX;
 U32 UI::activeEntity = U32_MAX;
 bool UI::cursorChanged;
 
+Hashmap<String, Function<void()>> UI::registeredActions;
+
 bool UI::Initialize()
 {
 	Logger::Trace("Initializing UI System...");
@@ -413,12 +415,12 @@ void UI::ProcessInteractable(U32 id)
 	if (isCurrentlyHovered && !interactable.isHovered)
 	{
 		interactable.isHovered = true;
-		if (interactable.OnHoverEnter) { interactable.OnHoverEnter(); }
+		if (interactable.onHoverEnterName.size()) { UI::TriggerAction(interactable.onHoverEnterName); }
 	}
 	else if (!isCurrentlyHovered && interactable.isHovered)
 	{
 		interactable.isHovered = false;
-		if (interactable.OnHoverExit) { interactable.OnHoverExit(); }
+		if (interactable.onHoverExitName.size()) { UI::TriggerAction(interactable.onHoverExitName); }
 	}
 
 	if (id == activeEntity)
@@ -429,10 +431,7 @@ void UI::ProcessInteractable(U32 id)
 		{
 			interactable.isPressed = false;
 
-			if (isCurrentlyHovered && interactable.OnClick)
-			{
-				interactable.OnClick();
-			}
+			if (isCurrentlyHovered && interactable.onClickName.size()) { UI::TriggerAction(interactable.onClickName); }
 		}
 	}
 	else
@@ -896,7 +895,6 @@ void UI::GenerateTextData(const glm::vec2& absPos, const glm::mat4& uiProjection
 
 	F32 scale = textComp.resolvedFontSize / (F32)textComp.font->GlyphSize();
 
-	//F32 aspectCorrectionX = (vp.y * 1920.0f) / (vp.x * 1080.0f);
 	F32 textWidth = GetTextWidth(textComp);
 	F32 startX = absPos.x;
 
@@ -1010,7 +1008,6 @@ F32 UI::GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex)
 	if (textComp.text.empty() || !textComp.font || stopIndex == 0) { return 0.0f; }
 
 	glm::vec2 vp = WindowSize();
-	F32 aspectCorrectionX = (vp.y * 1920.0f) / (vp.x * 1080.0f);
 	F32 scale = textComp.resolvedFontSize / (F32)textComp.font->GlyphSize();
 	F32 width = 0.0f;
 	U8 prev = 255;
@@ -1023,7 +1020,7 @@ F32 UI::GetTextWidthUpToIndex(const UIText& textComp, U32 stopIndex)
 		U8 index = c - 32;
 		F32 kern = (prev != 255 && c != ' ') ? textComp.font->glyphs[prev - 32].kerning[c - 32] : 0.0f;
 
-		width += (textComp.font->GetGlyph(index).advance + kern) * scale * aspectCorrectionX;
+		width += (textComp.font->GetGlyph(index).advance + kern) * scale;
 		prev = c;
 	}
 
@@ -1134,6 +1131,20 @@ void UI::BringWindowToFront(U32 windowId)
 	};
 
 	UpdateZ(UpdateZ, windowId);
+}
+
+void UI::RegisterAction(const String& name, Function<void()> callback)
+{
+	registeredActions[name] = Move(callback);
+}
+
+void UI::TriggerAction(const String& name)
+{
+	auto it = registeredActions.find(name);
+	if (it != registeredActions.end() && it->second)
+	{
+		it->second();
+	}
 }
 
 void UI::Render(VkCommandBuffer cmd)
@@ -1335,24 +1346,34 @@ Entity UI::CreateText(const UIRectDef& def, const String& text, UIValue fontSize
 	return entity;
 }
 
-Entity UI::CreateTextInput(const UIRectDef& def, Entity parent)
+Entity UI::CreateTextInput(const UIRectDef& def, Entity parent, bool noSerialization)
 {
 	Entity root = CreatePanel(def, { 0.1f, 0.1f, 0.1f, 1.0f }, parent);
 	root.AddComponent<UIClipMask>();
 	UITextInput& inputComp = root.AddComponent<UITextInput>();
+	inputComp.font = font;
 
-	Entity textEntity = CreateText({ { 6_px, 10_ph }, def.size }, inputComp.hintText, 24.0_px, false, false, { 0.3f, 0.3f, 0.3f, 1.0f }, root);
+	Entity textEntity = CreateText({ { 6_px, 10_ph }, def.size }, inputComp.hintText, 24_px, false, false, { 0.3f, 0.3f, 0.3f, 1.0f }, root);
 	textEntity.AddComponent<UIIgnoreHitTest>();
 	inputComp.textEntity = textEntity.Id();
 
 	Entity caret = CreatePanel({ { 6_px, 4_px }, { 2_px, 80_ph }, { 0.0f, 0.0f } }, { 1.0f, 1.0f, 1.0f, 0.0f }, root);
 	inputComp.caretEntity = caret.Id();
 
+	if (noSerialization)
+	{
+		root.AddComponent<NoSerialization>();
+		textEntity.AddComponent<NoSerialization>();
+		caret.AddComponent<NoSerialization>();
+	}
+
 	return root;
 }
 
-Button UI::CreateButton(const UIRectDef& def, const String& text, const Color& color, Entity parent)
+Button UI::CreateButton(const UIRectDef& def, const String& text, const Color& color, Entity parent, bool noSerialization)
 {
+	static U32 i = 0;
+
 	Entity buttonEntity = CreatePanel(def, color, parent);
 
 	UIInteractable& interactable = buttonEntity.AddComponent<UIInteractable>();
@@ -1360,21 +1381,31 @@ Button UI::CreateButton(const UIRectDef& def, const String& text, const Color& c
 	Entity textEntity = CreateText({ { 0_px, 10_ph }, def.size, { 0.5f, 0.0f } }, text, 24_px, false, true, color.GetContrastTextColor(), buttonEntity);
 	textEntity.AddComponent<UIIgnoreHitTest>();
 
-	interactable.OnHoverEnter = [buttonEntity, color, textEntity]() {
+	interactable.onHoverEnterName = "on_hover_enter" + std::to_string(i);
+	interactable.onHoverExitName = "on_hover_exit" + std::to_string(i);
+	++i;
+
+	UI::RegisterAction(interactable.onHoverEnterName, [buttonEntity, color, textEntity]() {
 		Color newColor = color.MultiplySaturation(0.7f).MultiplyValue(0.8f);
 		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = newColor;
 		Registry::GetComponent<UIText>(textEntity.Id()).color = newColor.GetContrastTextColor();
-	};
-
-	interactable.OnHoverExit = [buttonEntity, color, textEntity]() {
+	});
+	
+	UI::RegisterAction(interactable.onHoverExitName, [buttonEntity, color, textEntity]() {
 		Registry::GetComponent<UIPanel>(buttonEntity.Id()).color = color;
 		Registry::GetComponent<UIText>(textEntity.Id()).color = color.GetContrastTextColor();
-	};
+	});
+
+	if (noSerialization)
+	{
+		buttonEntity.AddComponent<NoSerialization>();
+		textEntity.AddComponent<NoSerialization>();
+	}
 
 	return { buttonEntity, interactable };
 }
 
-Entity UI::CreateWindow(const UIRectDef& def, const String& title, bool resizable)
+Entity UI::CreateWindow(const UIRectDef& def, const String& title, bool resizable, bool noSerialization)
 {
 	Entity windowRoot = CreatePanel(def, { 0.1f, 0.1f, 0.1f, 1.0f });
 	UIWindow& winComp = windowRoot.AddComponent<UIWindow>();
@@ -1391,10 +1422,17 @@ Entity UI::CreateWindow(const UIRectDef& def, const String& title, bool resizabl
 	winComp.bodyEntity = body.Id();
 	BringWindowToFront(windowRoot.Id());
 
+	if (noSerialization)
+	{
+		windowRoot.AddComponent<NoSerialization>();
+		textEntity.AddComponent<NoSerialization>();
+		body.AddComponent<NoSerialization>();
+	}
+
 	return body;
 }
 
-ScrollAreaEntities UI::CreateScrollArea(const UIRectDef& def, Entity parent)
+ScrollAreaEntities UI::CreateScrollArea(const UIRectDef& def, Entity parent, bool noSerialization)
 {
 	Entity viewport = CreateContainer(def, parent);
 	viewport.AddComponent<UIClipMask>();
@@ -1404,7 +1442,48 @@ ScrollAreaEntities UI::CreateScrollArea(const UIRectDef& def, Entity parent)
 	Entity content = CreateContainer({ {}, { 100_pw, 0_px } }, viewport);
 	scroll.contentEntity = content.Id();
 
+	if (noSerialization)
+	{
+		viewport.AddComponent<NoSerialization>();
+		content.AddComponent<NoSerialization>();
+	}
+
 	return { viewport, content };
+}
+
+void UI::DestroyChildren(Entity parent)
+{
+	Queue<Entity> children;
+
+	children.push(parent);
+
+	while (!children.empty())
+	{
+		Entity child = children.front();
+		children.pop();
+
+		SparseSet<UIHierarchy>& set = Registry::GetSet<UIHierarchy>();
+
+		if (Registry::GetSet<UIHierarchy>().Has(child.Id()))
+		{
+			UIHierarchy& hierarchy = Registry::GetComponent<UIHierarchy>(child.Id());
+
+			if (hierarchy.children.size())
+			{
+				for (Entity child : hierarchy.children)
+				{
+					children.push(child);
+				}
+
+				hierarchy.children.clear();
+			}
+		}
+
+		if (child.Id() != parent.Id())
+		{
+			Registry::DestroyEntity(child);
+		}
+	}
 }
 
 std::shared_ptr<Font> UI::GetFont()

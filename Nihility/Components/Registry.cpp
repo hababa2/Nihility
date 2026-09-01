@@ -6,7 +6,12 @@
 #include "Core/Logger.hpp"
 #include "Core/Time.hpp"
 #include "Core/Settings.hpp"
+#include "Core/DataWriter.hpp"
+#include "Core/DataReader.hpp"
+#include "Core/File.hpp"
 #include "Rendering/Renderer.hpp"
+#include "Rendering/Editor.hpp"
+#include "Resources/Scene.hpp"
 #include "Platform/Input.hpp"
 #include "Platform/Audio.hpp"
 #include "Physics/Physics.hpp"
@@ -70,6 +75,8 @@ void UpdateSprites()
 
 void UpdatePlayer()
 {
+	if (SceneManager::CurrentState() == EngineState::Paused) { return; }
+
 	F32 dt = (F32)Time::DeltaTime();
 	auto view = Registry::View<PlayerController, Rigidbody2D>();
 
@@ -110,6 +117,8 @@ void UpdatePlayer()
 
 void UpdateCameras()
 {
+	if (SceneManager::CurrentState() == EngineState::Paused) { return; }
+
 	auto view = Registry::View<Camera, CameraTarget>();
 	F32 dt = (F32)Time::DeltaTime();
 
@@ -157,6 +166,7 @@ Transform2D& Entity::Transform()
 }
 
 Vector<Transform2D> Registry::transforms;
+Vector<U32> Registry::activeEntities;
 Vector<U32> Registry::freeEntities;
 
 Vector<ISparseSet*> Registry::componentPools;
@@ -221,6 +231,8 @@ Entity Registry::CreateEntity(const Transform2D& transform)
 		transforms.push_back(transform);
 	}
 
+	activeEntities.push_back(entity.id);
+
 	return entity;
 }
 
@@ -234,9 +246,22 @@ Entity Registry::CreateEntity(glm::vec2 position, glm::vec2 scale, F32 rotation)
 	return CreateEntity(t);
 }
 
+Entity Registry::CreateEntityWithId(const Transform2D& transform, U32 id)
+{
+	transforms[id] = transform;
+	activeEntities.push_back(id);
+	return { id };
+}
+
 void Registry::DestroyEntity(Entity& entity)
 {
 	if (entity.id == U32_MAX) { return; }
+
+	auto it = std::find(activeEntities.begin(), activeEntities.end(), entity.id);
+	if (it != activeEntities.end())
+	{
+		activeEntities.erase(it);
+	}
 
 	for (ISparseSet* pool : componentPools)
 	{
@@ -259,6 +284,137 @@ Transform2D& Registry::GetTransform(U32 id)
 void Registry::RegisterComponentUpdate(const String& name, ComponentUpdateFn func, const Vector<String>& dependencies)
 {
 	registeredComponentUpdates.push_back({ name, func, dependencies });
+}
+
+Vector<U32> Registry::GetGameEntities()
+{
+#ifdef NH_DEBUG
+	Vector<U32> gameEntities;
+	gameEntities.reserve(activeEntities.size());
+
+	auto& noSerializationSet = GetSet<NoSerialization>();
+
+	for (U32 id : activeEntities)
+	{
+		if (!noSerializationSet.Has(id))
+		{
+			gameEntities.push_back(id);
+		}
+	}
+
+	return gameEntities;
+#else
+	return activeEntities; //TODO: don't copy here
+#endif
+}
+
+void Registry::ClearGameEntities()
+{
+	Vector<U32> toDestroy = GetGameEntities();
+
+	for (U32 id : toDestroy)
+	{
+		Entity entity{ id };
+		DestroyEntity(entity);
+	}
+}
+
+void Registry::SaveState(const String& filepath)
+{
+	DataWriter writer;
+
+	Vector<U32> entities = GetGameEntities();
+
+	writer.Write((U32)entities.size());
+
+	for (U32 entityId : entities)
+	{
+		writer.Write(entityId);
+		writer.Write(transforms[entityId]);
+
+		U32 componentCount = 0;
+		for (void* poolPtr : componentPools)
+		{
+			ISparseSet* set = static_cast<ISparseSet*>(poolPtr);
+			if (set->Has(entityId)) { componentCount++; }
+		}
+		writer.Write(componentCount);
+
+		for (void* poolPtr : componentPools)
+		{
+			ISparseSet* set = static_cast<ISparseSet*>(poolPtr);
+			if (set->Has(entityId))
+			{
+				writer.Write(set->GetTypeHash());
+
+				DataWriter compWriter;
+				set->Serialize(entityId, compWriter);
+
+				writer.Write((U64)compWriter.Size());
+				writer.Append(compWriter);
+			}
+		}
+	}
+
+	FileIO::WriteFileSync(filepath, writer.Data(), writer.Size());
+}
+
+void Registry::LoadState(const String& filepath)
+{
+	ClearGameEntities();
+
+	FileData data = FileIO::ReadFileSync(filepath);
+	if (!data.bufferSize) { return; }
+
+	DataReader reader(data);
+
+	U32 entityCount = 0;
+	reader.Read(entityCount);
+
+	for (U32 i = 0; i < entityCount; ++i)
+	{
+		U32 entityId = 0;
+		reader.Read(entityId);
+		Transform2D transform;
+		reader.Read(transform);
+
+		CreateEntityWithId(transform, entityId);
+
+		U32 componentCount = 0;
+		reader.Read(componentCount);
+
+		for (U32 j = 0; j < componentCount; ++j)
+		{
+			U64 typeHash = 0;
+			reader.Read(typeHash);
+
+			U64 payloadSize = 0;
+			reader.Read(payloadSize);
+
+			auto it = componentSetMap.find(typeHash);
+			if (it != componentSetMap.end())
+			{
+				ISparseSet* set = static_cast<ISparseSet*>(it->second);
+
+				U64 startPos = reader.Position();
+
+				set->Deserialize(entityId, reader);
+
+				U64 bytesRead = reader.Position() - startPos;
+				if (bytesRead != payloadSize)
+				{
+					Logger::Error("STREAM MISALIGNMENT DETECTED in Component Hash ", typeHash, "! Expected ", payloadSize, " bytes, read ", bytesRead, "!");
+
+					reader.SeekFromStart(startPos + payloadSize);
+				}
+			}
+			else
+			{
+				Logger::Warn("Unregistered Component Hash ", typeHash, " with size ", payloadSize, "!");
+				reader.Seek(payloadSize);
+			}
+		}
+	}
 }
 
 bool Registry::CompileComponentGraph()

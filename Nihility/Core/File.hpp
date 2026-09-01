@@ -7,6 +7,8 @@
 #include <thread>
 #include <atomic>
 
+#undef DeleteFile
+
 struct FileData
 {
 	C* buffer;
@@ -29,6 +31,9 @@ public:
 	static FileData ReadFileSync(const Path& path);
 	static FileData ReadPartialFileSync(const Path& path, U64 offset, U64 readSize);
 	static bool WriteFileSync(const Path& path, const void* buffer, U64 size, U64 offset = 0);
+	static void DeleteFile(const Path& path);
+
+	static Vector<String> GetSavedLevels();
 
 	static void FreeData(const FileData& data);
 

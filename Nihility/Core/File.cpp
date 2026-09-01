@@ -316,9 +316,37 @@ bool FileIO::WriteFileSync(const Path& path, const void* data, U64 size, U64 off
 	return result && bytesWritten == (UL32)alignedSize;
 }
 
+void FileIO::DeleteFile(const Path& path)
+{
+	DeleteFileW(path.wstring().c_str());
+}
+
 void FileIO::FreeData(const FileData& data)
 {
 	Memory::FreeAligned(data.buffer);
+}
+
+Vector<String> FileIO::GetSavedLevels()
+{
+	Vector<String> levels;
+
+	String path = "Levels";
+
+	if (!std::filesystem::exists(path))
+	{
+		std::filesystem::create_directories(path);
+		return levels;
+	}
+
+	for (const auto& entry : std::filesystem::directory_iterator(path))
+	{
+		if (entry.path().extension() == ".tilemap")
+		{
+			levels.push_back((String)entry.path().stem().string());
+		}
+	}
+
+	return levels;
 }
 
 void FileIO::WorkerLoop()
@@ -340,7 +368,7 @@ void FileIO::WorkerLoop()
 		if (pOverlapped == (LPOVERLAPPED)1)
 		{
 			IORequest* reqToFree = (IORequest*)completionKey;
-			requestPool.Free(reqToFree);
+			requestPool.Free(reqToFree); //TODO: this can crash sometimes?!?!?!??!?
 			continue;
 		}
 

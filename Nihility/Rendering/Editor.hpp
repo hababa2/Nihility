@@ -28,17 +28,24 @@ private:
 	static void BuildPaletteWindow(const Vector<U32>& loadedTextureIds);
 	static void RenderGrid(VkCommandBuffer_T* cmd);
 
+	static void SaveLevel(const String& levelName);
+	static void LoadLevel(const String& levelName);
+	static void DeleteLevel(const String& levelName);
+
 	static Entity viewportPanel;
 	static Entity tileSelectionHighlight;
 	static Entity collisionSelectionHighlight;
 	static Entity visualPaletteRoot;
 	static Entity collisionPaletteRoot;
+	static Entity saveMenuRoot;
+	static Entity loadMenuRoot;
 
 	static EditorTool activeTool;
 	static TileLayer activeLayer;
 	static U32 selectedTextureId;
 	static CollisionType activeCollisionType;
-	
+	static String currentLevel;
+
 	static Entity cameraEntity;
 
 	static Vector<std::shared_ptr<Texture>> loadedTileTextures;
@@ -48,6 +55,7 @@ private:
 
 	friend class Nihility;
 	friend class Renderer;
+	friend struct TempScene;
 
 	STATIC_CLASS(Editor);
 };

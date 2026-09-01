@@ -7,30 +7,11 @@
 
 #include <tuple>
 
-constexpr U64 HashTypeString(const char* str)
-{
-	U64 hash = 14695981039346656037ull;
-	while (*str)
-	{
-		hash ^= static_cast<U64>(*str++);
-		hash *= 1099511628211ull;
-	}
-	return hash;
-}
-
-template<typename T>
-constexpr U64 GetComponentHash()
-{
-#if defined(_MSC_VER)
-	return HashTypeString(__FUNCSIG__);
-#else
-	return HashTypeString(__PRETTY_FUNCTION__);
-#endif
-}
-
 struct NH_API Entity
 {
 public:
+	Entity() = default;
+
 	template<class Component, typename... Args>
 	Component& AddComponent(Args&&... args);
 
@@ -40,12 +21,17 @@ public:
 	template<class Component>
 	void RemoveComponent();
 
+	template<class Component>
+	bool HasComponent();
+
 	Transform2D& Transform();
 
 	U32 Id() const { return id; }
 	bool Valid() const { return id != U32_MAX; }
 
 private:
+	Entity(U32 id) : id(id) {}
+
 	U32 id = U32_MAX;
 
 	friend class Registry;
@@ -132,7 +118,16 @@ public:
 	template<typename Lead, typename... Others>
 	static ComponentView<Lead, Others...> View();
 
+	template<typename T>
+	static void RegisterComponent();
+
 	static void RegisterComponentUpdate(const String& name, ComponentUpdateFn func, const Vector<String>& dependencies = {});
+
+	static Vector<U32> GetGameEntities();
+	static void ClearGameEntities();
+
+	static void SaveState(const String& filepath);
+	static void LoadState(const String& filepath);
 
 private:
 	static bool Initialize();
@@ -141,9 +136,11 @@ private:
 
 	static bool CompileComponentGraph();
 
+	static Entity CreateEntityWithId(const Transform2D& transform, U32 id);
 	static void* InternalGetOrCreateSet(U64 typeHash, void* (*Allocator)());
 
 	static Vector<Transform2D> transforms;
+	static Vector<U32> activeEntities;
 	static Vector<U32> freeEntities;
 
 	static Vector<ISparseSet*> componentPools;
@@ -173,6 +170,12 @@ template<class Component>
 inline void Entity::RemoveComponent()
 {
 	Registry::RemoveComponent<Component>(id);
+}
+
+template<class Component>
+inline bool Entity::HasComponent()
+{
+	return Registry::HasComponent<Component>(id);
 }
 
 template<class Component, typename... Args>
@@ -217,4 +220,10 @@ template<typename Lead, typename... Others>
 inline ComponentView<Lead, Others...> Registry::View()
 {
 	return ComponentView<Lead, Others...>(GetSet<Lead>(), GetSet<Others>()...);
+}
+
+template<typename T>
+inline void Registry::RegisterComponent()
+{
+	GetSet<T>();
 }

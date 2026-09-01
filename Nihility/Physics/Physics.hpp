@@ -2,6 +2,9 @@
 
 #include "Defines.hpp"
 
+#include "Core/DataReader.hpp"
+#include "Core/DataWriter.hpp"
+
 #include <glm/glm.hpp>
 
 struct NH_API Rigidbody2D
@@ -10,12 +13,27 @@ struct NH_API Rigidbody2D
 
 	bool isGrounded = false;
 	bool isAgainstWall = false;
+
+	void Serialize(DataWriter& writer) const { }
+	void Deserialize(DataReader& reader) { }
 };
 
 struct NH_API ColliderAABB
 {
 	glm::vec2 halfExtents{ 0.5f, 0.5f };
 	glm::vec2 offset{ 0.0f, 0.0f };
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(halfExtents);
+		writer.Write(offset);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(halfExtents);
+		reader.Read(offset);
+	}
 };
 
 struct NH_API Hurtbox
@@ -24,6 +42,22 @@ struct NH_API Hurtbox
 	glm::vec2 offset{ 0.0f, 0.0f };
 	U32 teamId = 0;
 	bool isInvincible = false;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(halfExtents);
+		writer.Write(offset);
+		writer.Write(teamId);
+		writer.Write(isInvincible);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(halfExtents);
+		reader.Read(offset);
+		reader.Read(teamId);
+		reader.Read(isInvincible);
+	}
 };
 
 struct NH_API Hitbox
@@ -36,6 +70,26 @@ struct NH_API Hitbox
 	glm::vec2 knockback{ 0.0f, 0.0f };
 
 	bool isActive = false;
+
+	void Serialize(DataWriter& writer) const
+	{
+		writer.Write(halfExtents);
+		writer.Write(offset);
+		writer.Write(teamId);
+		writer.Write(damage);
+		writer.Write(knockback);
+		writer.Write(isActive);
+	}
+
+	void Deserialize(DataReader& reader)
+	{
+		reader.Read(halfExtents);
+		reader.Read(offset);
+		reader.Read(teamId);
+		reader.Read(damage);
+		reader.Read(knockback);
+		reader.Read(isActive);
+	}
 };
 
 struct CollisionManifold

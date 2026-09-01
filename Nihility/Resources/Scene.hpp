@@ -86,6 +86,11 @@ public:
 		Tilemap::Load(filepath);
 	}
 
+	void LoadEntities(const String& filepath)
+	{
+		Registry::LoadState(filepath);
+	}
+
 	void ClearScene()
 	{
 		OnStop();

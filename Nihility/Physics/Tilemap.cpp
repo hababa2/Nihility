@@ -293,6 +293,7 @@ void Tilemap::EnsureRenderDataExists(U32 entityId, U32 requiredVertices, U32 req
 	if (!Registry::HasComponent<TilemapRenderData>(entityId))
 	{
 		Registry::AddComponent<TilemapRenderData>(entityId);
+		Registry::AddComponent<NoSerialization>(entityId);
 	}
 
 	TilemapRenderData& renderData = Registry::GetComponent<TilemapRenderData>(entityId);
@@ -398,6 +399,7 @@ Entity Tilemap::GetOrCreateChunk(I32 chunkX, I32 chunkY)
 
 	Entity chunkEntity = Registry::CreateEntity();
 	TilemapChunk& chunkData = chunkEntity.AddComponent<TilemapChunk>();
+	chunkEntity.AddComponent<NoSerialization>();
 
 	chunkData.gridPosition = { chunkX, chunkY };
 	chunkData.isDirty = true;
@@ -572,7 +574,7 @@ void Tilemap::Save(const String& filepath)
 {
 	U32 chunkCount = (U32)chunkMap.size();
 
-	U32 bufferSize = sizeof(U32) + (sizeof(U64) + sizeof(TilemapChunk::layers)) * chunkCount;
+	U32 bufferSize = sizeof(U32) + (sizeof(U64) + sizeof(TilemapChunk::layers)) * chunkCount; //TODO: kinda large :/
 
 	U8* buffer;
 	Memory::Allocate(&buffer, bufferSize);

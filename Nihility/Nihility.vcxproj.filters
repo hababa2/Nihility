@@ -330,5 +330,8 @@
     <ClCompile Include="Rendering\Editor.cpp">
       <Filter>Source Files\Rendering\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Core\DataWriter.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

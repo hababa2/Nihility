@@ -3,6 +3,29 @@
 #include "Defines.hpp"
 
 #include "Core/Containers.hpp"
+#include "Core/DataReader.hpp"
+#include "Core/DataWriter.hpp"
+
+constexpr U64 HashTypeString(const char* str)
+{
+	U64 hash = 14695981039346656037ull;
+	while (*str)
+	{
+		hash ^= static_cast<U64>(*str++);
+		hash *= 1099511628211ull;
+	}
+	return hash;
+}
+
+template<typename T>
+constexpr U64 GetComponentHash()
+{
+#if defined(_MSC_VER)
+	return HashTypeString(__FUNCSIG__);
+#else
+	return HashTypeString(__PRETTY_FUNCTION__);
+#endif
+}
 
 struct ISparseSet
 {
@@ -10,6 +33,10 @@ public:
 	virtual ~ISparseSet() = default;
 	virtual void Remove(U32 entity) = 0;
 	virtual bool Has(U32 entity) const = 0;
+
+	virtual void Serialize(U32 entity, DataWriter& writer) = 0;
+	virtual void Deserialize(U32 entity, DataReader& reader) = 0;
+	virtual U64 GetTypeHash() const = 0;
 };
 
 template<typename T>
@@ -22,6 +49,12 @@ public:
 		if (entity >= sparseIndices.size())
 		{
 			sparseIndices.resize(entity + 1, U32_MAX);
+		}
+		else if (Has(entity))
+		{
+			T& existing = Get(entity);
+			existing = T(Forward<Args>(args)...);
+			return existing;
 		}
 
 		sparseIndices[entity] = (U32)denseData.size();
@@ -62,6 +95,24 @@ public:
 		denseEntities.pop_back();
 
 		sparseIndices[entity] = U32_MAX;
+	}
+
+	void Serialize(U32 entity, DataWriter& writer) override
+	{
+		T& t = Get(entity);
+		t.Serialize(writer);
+	}
+
+	void Deserialize(U32 entity, DataReader& reader) override
+	{
+		T t{};
+		t.Deserialize(reader);
+		Add(entity, t);
+	}
+
+	U64 GetTypeHash() const override
+	{
+		return GetComponentHash<T>();
 	}
 
 private:

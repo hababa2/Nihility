@@ -156,6 +156,7 @@
     <ClCompile Include="..\Lib\stb\stb_vorbis.c" />
     <ClCompile Include="Components\Registry.cpp" />
     <ClCompile Include="Core\DataReader.cpp" />
+    <ClCompile Include="Core\DataWriter.cpp" />
     <ClCompile Include="Core\Events.cpp" />
     <ClCompile Include="Core\File.cpp" />
     <ClCompile Include="Core\Logger.cpp" />
